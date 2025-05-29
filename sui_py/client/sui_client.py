@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 from .rest_client import RestClient
 from .coin_query import CoinQueryClient
+from .extended_api import ExtendedAPIClient
 from ..constants import DEFAULT_TIMEOUT, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY
 
 
@@ -20,6 +21,7 @@ class SuiClient:
         async with SuiClient("mainnet") as client:
             balance = await client.coin_query.get_balance(address)
             coins = await client.coin_query.get_all_coins(address)
+            objects = await client.extended_api.get_owned_objects(address)
     """
     
     def __init__(
@@ -59,6 +61,7 @@ class SuiClient:
         
         # Initialize API clients
         self.coin_query = CoinQueryClient(self._rest_client)
+        self.extended_api = ExtendedAPIClient(self._rest_client)
     
     async def __aenter__(self):
         """Async context manager entry."""

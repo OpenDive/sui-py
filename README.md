@@ -9,7 +9,7 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ## Current Status
 
-🚧 **In Development** - Currently implementing Coin Query API
+🚧 **In Development** - Currently implementing Extended API
 
 ### Async-First Design
 
@@ -20,6 +20,7 @@ This SDK is designed with async/await as the primary interface for optimal perfo
 async with SuiClient("mainnet") as client:
     balance = await client.coin_query.get_balance(address)
     coins = await client.coin_query.get_all_coins(address)
+    objects = await client.extended_api.get_owned_objects(address)
 ```
 
 ## Features
@@ -33,12 +34,24 @@ async with SuiClient("mainnet") as client:
   - `get_coins()` - Get coins of specific type (with pagination)
   - `get_total_supply()` - Get total supply of a coin type
 
+- **Extended API**: Complete implementation of extended RPC methods
+  - `get_dynamic_fields()` - Get dynamic field info for an object
+  - `get_dynamic_field_object()` - Get dynamic field object data
+  - `get_owned_objects()` - Get objects owned by an address (with pagination)
+  - `query_events()` - Query events with filters (with pagination)
+  - `query_transaction_blocks()` - Query transaction blocks (with pagination)
+  - `resolve_name_service_address()` - Resolve name to address
+  - `resolve_name_service_names()` - Get names for an address
+  - Note: Subscription methods require WebSocket support (not implemented in REST client)
+
 ### 🚧 Coming Soon
-- Extended API (objects, events, transactions)
 - Read API (checkpoints, protocol config)
 - Transaction Builder API
 - Write API (transaction execution)
+- Governance Read API
+- Move Utils API
 - Typed data models (Address, ObjectID, etc.)
+- WebSocket client for subscriptions
 
 ## Installation
 
@@ -111,6 +124,7 @@ pip install -r requirements-dev.txt
 
 ## Quick Start
 
+### Coin Query API
 ```python
 import asyncio
 from sui_py import SuiClient
@@ -125,6 +139,34 @@ async def main():
         
         for balance in balances:
             print(f"{balance['coinType']}: {balance['totalBalance']}")
+
+asyncio.run(main())
+```
+
+### Extended API
+```python
+import asyncio
+from sui_py import SuiClient
+
+async def main():
+    async with SuiClient("testnet") as client:
+        # Get owned objects
+        objects = await client.extended_api.get_owned_objects(
+            owner="0x...",
+            limit=10
+        )
+        
+        # Query events
+        events = await client.extended_api.query_events(
+            query={"All": []},
+            limit=5
+        )
+        
+        # Query transactions
+        transactions = await client.extended_api.query_transaction_blocks(
+            query={"FromAddress": "0x..."},
+            limit=5
+        )
 
 asyncio.run(main())
 ```
@@ -157,6 +199,7 @@ async with SuiClient("mainnet") as client:
 
 See the `examples/` directory for complete usage examples:
 - `coin_query_example.py` - Comprehensive Coin Query API usage
+- `extended_api_example.py` - Extended API usage with objects, events, and transactions
 
 ## Contributing
 
