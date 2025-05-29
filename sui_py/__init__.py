@@ -9,10 +9,37 @@ __author__ = "SuiPy Team"
 
 from .client import SuiClient
 from .exceptions import SuiError, SuiRPCError, SuiValidationError
+from .types import (
+    # Base types
+    SuiAddress, ObjectID, TransactionDigest, Base64, Hex,
+    # Coin types
+    Balance, Coin, SuiCoinMetadata, Supply,
+    # Pagination
+    Page
+)
 
 __all__ = [
+    # Client
     "SuiClient",
+    
+    # Exceptions
     "SuiError", 
     "SuiRPCError",
     "SuiValidationError",
+    
+    # Base types
+    "SuiAddress",
+    "ObjectID", 
+    "TransactionDigest",
+    "Base64",
+    "Hex",
+    
+    # Coin types
+    "Balance",
+    "Coin",
+    "SuiCoinMetadata", 
+    "Supply",
+    
+    # Pagination
+    "Page",
 ] 

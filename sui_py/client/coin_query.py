@@ -4,11 +4,12 @@ Coin Query API client for Sui blockchain.
 Implements all coin-related RPC methods from the Sui JSON-RPC API.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import re
 
 from .rest_client import RestClient
 from ..exceptions import SuiValidationError
+from ..types import Balance, Coin, SuiCoinMetadata, Supply, Page, SuiAddress
 
 
 class CoinQueryClient:
@@ -16,7 +17,7 @@ class CoinQueryClient:
     Client for Sui Coin Query API operations.
     
     Provides methods for querying coin balances, metadata, and ownership information.
-    All methods return raw dictionary responses from the Sui JSON-RPC API.
+    All methods return typed objects corresponding to the Sui JSON-RPC API schemas.
     """
     
     def __init__(self, rest_client: RestClient):
@@ -29,25 +30,28 @@ class CoinQueryClient:
         self.rest_client = rest_client
     
     @staticmethod
-    def _validate_address(address: str) -> None:
+    def _validate_address(address: Union[str, SuiAddress]) -> str:
         """
-        Validate a Sui address format.
+        Validate and normalize a Sui address.
         
         Args:
-            address: The address string to validate
+            address: The address string or SuiAddress to validate
+            
+        Returns:
+            The normalized address string
             
         Raises:
             SuiValidationError: If the address format is invalid
         """
-        if not isinstance(address, str):
-            raise SuiValidationError("Address must be a string")
+        if isinstance(address, SuiAddress):
+            return str(address)
         
-        # Sui addresses are 32-byte hex strings with 0x prefix
-        if not re.match(r"^0x[a-fA-F0-9]{64}$", address):
-            raise SuiValidationError(
-                f"Invalid Sui address format: {address}. "
-                "Expected 32-byte hex string with 0x prefix (66 characters total)"
-            )
+        if not isinstance(address, str):
+            raise SuiValidationError("Address must be a string or SuiAddress")
+        
+        # Validate using SuiAddress constructor
+        validated_address = SuiAddress.from_str(address)
+        return str(validated_address)
     
     @staticmethod
     def _validate_coin_type(coin_type: str) -> None:
@@ -70,7 +74,7 @@ class CoinQueryClient:
                 "Expected format: 0x<package>::<module>::<type>"
             )
     
-    async def get_all_balances(self, owner: str) -> List[Dict[str, Any]]:
+    async def get_all_balances(self, owner: Union[str, SuiAddress]) -> List[Balance]:
         """
         Return the total coin balance for all coin types owned by the address.
         
@@ -78,25 +82,22 @@ class CoinQueryClient:
             owner: The owner's Sui address
             
         Returns:
-            List of balance objects, each containing:
-            - coinType: The coin type identifier
-            - coinObjectCount: Number of coin objects
-            - totalBalance: Total balance as string
-            - lockedBalance: Locked balance information
+            List of Balance objects
             
         Raises:
             SuiValidationError: If the owner address is invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(owner)
-        return await self.rest_client.call("suix_getAllBalances", [owner])
+        owner_str = self._validate_address(owner)
+        response = await self.rest_client.call("suix_getAllBalances", [owner_str])
+        return [Balance.from_dict(balance_data) for balance_data in response]
     
     async def get_all_coins(
         self, 
-        owner: str, 
+        owner: Union[str, SuiAddress], 
         cursor: Optional[str] = None, 
         limit: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> Page[Coin]:
         """
         Return all Coin objects owned by an address.
         
@@ -106,18 +107,15 @@ class CoinQueryClient:
             limit: Maximum number of items per page
             
         Returns:
-            Dictionary containing:
-            - data: List of coin objects
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of Coin objects
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(owner)
+        owner_str = self._validate_address(owner)
         
-        params = [owner]
+        params = [owner_str]
         if cursor is not None:
             params.append(cursor)
             if limit is not None:
@@ -126,13 +124,14 @@ class CoinQueryClient:
             params.append(None)  # cursor placeholder
             params.append(limit)
         
-        return await self.rest_client.call("suix_getAllCoins", params)
+        response = await self.rest_client.call("suix_getAllCoins", params)
+        return Page.from_dict(response, Coin.from_dict)
     
     async def get_balance(
         self, 
-        owner: str, 
+        owner: Union[str, SuiAddress], 
         coin_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> Balance:
         """
         Return the balance for a specific coin type owned by an address.
         
@@ -141,26 +140,23 @@ class CoinQueryClient:
             coin_type: The coin type to query (defaults to SUI if not provided)
             
         Returns:
-            Balance object containing:
-            - coinType: The coin type identifier
-            - coinObjectCount: Number of coin objects
-            - totalBalance: Total balance as string
-            - lockedBalance: Locked balance information
+            Balance object
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(owner)
+        owner_str = self._validate_address(owner)
         
-        params = [owner]
+        params = [owner_str]
         if coin_type is not None:
             self._validate_coin_type(coin_type)
             params.append(coin_type)
         
-        return await self.rest_client.call("suix_getBalance", params)
+        response = await self.rest_client.call("suix_getBalance", params)
+        return Balance.from_dict(response)
     
-    async def get_coin_metadata(self, coin_type: str) -> Dict[str, Any]:
+    async def get_coin_metadata(self, coin_type: str) -> SuiCoinMetadata:
         """
         Return metadata for a coin type.
         
@@ -168,28 +164,23 @@ class CoinQueryClient:
             coin_type: The coin type to get metadata for
             
         Returns:
-            Coin metadata object containing:
-            - decimals: Number of decimal places
-            - name: Coin name
-            - symbol: Coin symbol
-            - description: Coin description
-            - iconUrl: URL to coin icon (if available)
-            - id: Metadata object ID
+            SuiCoinMetadata object
             
         Raises:
             SuiValidationError: If the coin type is invalid
             SuiRPCError: If the RPC call fails
         """
         self._validate_coin_type(coin_type)
-        return await self.rest_client.call("suix_getCoinMetadata", [coin_type])
+        response = await self.rest_client.call("suix_getCoinMetadata", [coin_type])
+        return SuiCoinMetadata.from_dict(response)
     
     async def get_coins(
         self,
-        owner: str,
+        owner: Union[str, SuiAddress],
         coin_type: Optional[str] = None,
         cursor: Optional[str] = None,
         limit: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> Page[Coin]:
         """
         Return coins of a specific type owned by an address.
         
@@ -200,18 +191,15 @@ class CoinQueryClient:
             limit: Maximum number of items per page
             
         Returns:
-            Dictionary containing:
-            - data: List of coin objects
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of Coin objects
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(owner)
+        owner_str = self._validate_address(owner)
         
-        params = [owner]
+        params = [owner_str]
         if coin_type is not None:
             self._validate_coin_type(coin_type)
             params.append(coin_type)
@@ -231,9 +219,10 @@ class CoinQueryClient:
                 params.append(None)  # cursor placeholder
             params.append(limit)
         
-        return await self.rest_client.call("suix_getCoins", params)
+        response = await self.rest_client.call("suix_getCoins", params)
+        return Page.from_dict(response, Coin.from_dict)
     
-    async def get_total_supply(self, coin_type: str) -> Dict[str, Any]:
+    async def get_total_supply(self, coin_type: str) -> Supply:
         """
         Return the total supply for a coin type.
         
@@ -241,12 +230,12 @@ class CoinQueryClient:
             coin_type: The coin type to get total supply for
             
         Returns:
-            Supply object containing:
-            - value: Total supply as string
+            Supply object
             
         Raises:
             SuiValidationError: If the coin type is invalid
             SuiRPCError: If the RPC call fails
         """
         self._validate_coin_type(coin_type)
-        return await self.rest_client.call("suix_getTotalSupply", [coin_type]) 
+        response = await self.rest_client.call("suix_getTotalSupply", [coin_type])
+        return Supply.from_dict(response) 
