@@ -15,6 +15,13 @@ import re
 
 from .rest_client import RestClient
 from ..exceptions import SuiValidationError
+from ..types import (
+    SuiAddress, ObjectID, TransactionDigest,
+    DynamicFieldName, DynamicFieldInfo, 
+    SuiObjectData, SuiObjectResponse,
+    SuiEvent, SuiTransactionBlockResponse,
+    Page
+)
 
 
 class ExtendedAPIClient:
@@ -22,7 +29,7 @@ class ExtendedAPIClient:
     Client for Sui Extended API operations.
     
     Provides methods for querying objects, events, transactions, and dynamic fields.
-    All methods return raw dictionary responses from the Sui JSON-RPC API.
+    All methods return typed objects corresponding to the Sui JSON-RPC API schemas.
     """
     
     def __init__(self, rest_client: RestClient):
@@ -35,75 +42,83 @@ class ExtendedAPIClient:
         self.rest_client = rest_client
     
     @staticmethod
-    def _validate_address(address: str) -> None:
+    def _validate_address(address: Union[str, SuiAddress]) -> str:
         """
-        Validate a Sui address format.
+        Validate and normalize a Sui address.
         
         Args:
-            address: The address string to validate
+            address: The address string or SuiAddress to validate
+            
+        Returns:
+            The normalized address string
             
         Raises:
             SuiValidationError: If the address format is invalid
         """
-        if not isinstance(address, str):
-            raise SuiValidationError("Address must be a string")
+        if isinstance(address, SuiAddress):
+            return str(address)
         
-        # Sui addresses are 32-byte hex strings with 0x prefix
-        if not re.match(r"^0x[a-fA-F0-9]{64}$", address):
-            raise SuiValidationError(
-                f"Invalid Sui address format: {address}. "
-                "Expected 32-byte hex string with 0x prefix (66 characters total)"
-            )
+        if not isinstance(address, str):
+            raise SuiValidationError("Address must be a string or SuiAddress")
+        
+        # Validate using SuiAddress constructor
+        validated_address = SuiAddress.from_str(address)
+        return str(validated_address)
     
     @staticmethod
-    def _validate_object_id(object_id: str) -> None:
+    def _validate_object_id(object_id: Union[str, ObjectID]) -> str:
         """
-        Validate a Sui object ID format.
+        Validate and normalize a Sui object ID.
         
         Args:
-            object_id: The object ID string to validate
+            object_id: The object ID string or ObjectID to validate
+            
+        Returns:
+            The normalized object ID string
             
         Raises:
             SuiValidationError: If the object ID format is invalid
         """
-        if not isinstance(object_id, str):
-            raise SuiValidationError("Object ID must be a string")
+        if isinstance(object_id, ObjectID):
+            return str(object_id)
         
-        # Object IDs are 32-byte hex strings with 0x prefix
-        if not re.match(r"^0x[a-fA-F0-9]{64}$", object_id):
-            raise SuiValidationError(
-                f"Invalid object ID format: {object_id}. "
-                "Expected 32-byte hex string with 0x prefix (66 characters total)"
-            )
+        if not isinstance(object_id, str):
+            raise SuiValidationError("Object ID must be a string or ObjectID")
+        
+        # Validate using ObjectID constructor
+        validated_object_id = ObjectID.from_str(object_id)
+        return str(validated_object_id)
     
     @staticmethod
-    def _validate_transaction_digest(digest: str) -> None:
+    def _validate_transaction_digest(digest: Union[str, TransactionDigest]) -> str:
         """
-        Validate a transaction digest format.
+        Validate and normalize a transaction digest.
         
         Args:
-            digest: The transaction digest string to validate
+            digest: The transaction digest string or TransactionDigest to validate
+            
+        Returns:
+            The normalized digest string
             
         Raises:
             SuiValidationError: If the digest format is invalid
         """
-        if not isinstance(digest, str):
-            raise SuiValidationError("Transaction digest must be a string")
+        if isinstance(digest, TransactionDigest):
+            return str(digest)
         
-        # Transaction digests are base58 encoded strings
-        # Basic length check (typically 43-44 characters for base58)
-        if len(digest) < 40 or len(digest) > 50:
-            raise SuiValidationError(
-                f"Invalid transaction digest format: {digest}. "
-                "Expected base58 encoded string"
-            )
+        if not isinstance(digest, str):
+            raise SuiValidationError("Transaction digest must be a string or TransactionDigest")
+        
+        # Validate using TransactionDigest constructor
+        validated_digest = TransactionDigest.from_str(digest)
+        return str(validated_digest)
     
     async def get_dynamic_fields(
         self,
-        parent_object_id: str,
+        parent_object_id: Union[str, ObjectID],
         cursor: Optional[str] = None,
         limit: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> Page[DynamicFieldInfo]:
         """
         Return the list of dynamic field info for a given object.
         
@@ -113,18 +128,15 @@ class ExtendedAPIClient:
             limit: Maximum number of items per page
             
         Returns:
-            Dictionary containing:
-            - data: List of dynamic field info objects
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of DynamicFieldInfo objects
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_object_id(parent_object_id)
+        parent_id_str = self._validate_object_id(parent_object_id)
         
-        params = [parent_object_id]
+        params = [parent_id_str]
         if cursor is not None:
             params.append(cursor)
             if limit is not None:
@@ -133,13 +145,14 @@ class ExtendedAPIClient:
             params.append(None)  # cursor placeholder
             params.append(limit)
         
-        return await self.rest_client.call("suix_getDynamicFields", params)
+        response = await self.rest_client.call("suix_getDynamicFields", params)
+        return Page.from_dict(response, DynamicFieldInfo.from_dict)
     
     async def get_dynamic_field_object(
         self,
-        parent_object_id: str,
-        name: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        parent_object_id: Union[str, ObjectID],
+        name: Union[Dict[str, Any], DynamicFieldName]
+    ) -> SuiObjectResponse:
         """
         Return the dynamic field object information for a given name.
         
@@ -148,26 +161,31 @@ class ExtendedAPIClient:
             name: The dynamic field name object containing type and value
             
         Returns:
-            Dynamic field object data
+            SuiObjectResponse object
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_object_id(parent_object_id)
+        parent_id_str = self._validate_object_id(parent_object_id)
         
-        if not isinstance(name, dict):
-            raise SuiValidationError("Dynamic field name must be a dictionary")
+        if isinstance(name, DynamicFieldName):
+            name_dict = name.to_dict()
+        elif isinstance(name, dict):
+            name_dict = name
+        else:
+            raise SuiValidationError("Dynamic field name must be a dictionary or DynamicFieldName")
         
-        return await self.rest_client.call("suix_getDynamicFieldObject", [parent_object_id, name])
+        response = await self.rest_client.call("suix_getDynamicFieldObject", [parent_id_str, name_dict])
+        return SuiObjectResponse.from_dict(response)
     
     async def get_owned_objects(
         self,
-        owner: str,
+        owner: Union[str, SuiAddress],
         query: Optional[Dict[str, Any]] = None,
         cursor: Optional[str] = None,
         limit: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> Page[SuiObjectResponse]:
         """
         Return the list of objects owned by an address.
         
@@ -178,18 +196,15 @@ class ExtendedAPIClient:
             limit: Maximum number of items per page
             
         Returns:
-            Dictionary containing:
-            - data: List of owned objects
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of SuiObjectResponse objects
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(owner)
+        owner_str = self._validate_address(owner)
         
-        params = [owner]
+        params = [owner_str]
         if query is not None:
             params.append(query)
         else:
@@ -203,7 +218,8 @@ class ExtendedAPIClient:
             params.append(None)  # cursor placeholder
             params.append(limit)
         
-        return await self.rest_client.call("suix_getOwnedObjects", params)
+        response = await self.rest_client.call("suix_getOwnedObjects", params)
+        return Page.from_dict(response, SuiObjectResponse.from_dict)
     
     async def query_events(
         self,
@@ -211,21 +227,18 @@ class ExtendedAPIClient:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
         descending_order: bool = False
-    ) -> Dict[str, Any]:
+    ) -> Page[SuiEvent]:
         """
         Return list of events for a specified query criteria.
         
         Args:
-            query: Event query filter
+            query: The event query criteria
             cursor: Optional paging cursor
             limit: Maximum number of items per page
             descending_order: Whether to return results in descending order
             
         Returns:
-            Dictionary containing:
-            - data: List of events
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of SuiEvent objects
             
         Raises:
             SuiValidationError: If parameters are invalid
@@ -237,17 +250,21 @@ class ExtendedAPIClient:
         params = [query]
         if cursor is not None:
             params.append(cursor)
-        else:
-            params.append(None)
-            
-        if limit is not None:
+            if limit is not None:
+                params.append(limit)
+        elif limit is not None:
+            params.append(None)  # cursor placeholder
             params.append(limit)
-        else:
-            params.append(None)
-            
-        params.append(descending_order)
         
-        return await self.rest_client.call("suix_queryEvents", params)
+        # Add descending order parameter if specified
+        if descending_order:
+            # Pad params to ensure descending_order is in the right position
+            while len(params) < 3:
+                params.append(None)
+            params.append(descending_order)
+        
+        response = await self.rest_client.call("suix_queryEvents", params)
+        return Page.from_dict(response, SuiEvent.from_dict)
     
     async def query_transaction_blocks(
         self,
@@ -255,21 +272,18 @@ class ExtendedAPIClient:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
         descending_order: bool = False
-    ) -> Dict[str, Any]:
+    ) -> Page[SuiTransactionBlockResponse]:
         """
         Return list of transaction blocks for a specified query criteria.
         
         Args:
-            query: Transaction query filter
+            query: The transaction query criteria
             cursor: Optional paging cursor
             limit: Maximum number of items per page
             descending_order: Whether to return results in descending order
             
         Returns:
-            Dictionary containing:
-            - data: List of transaction blocks
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of SuiTransactionBlockResponse objects
             
         Raises:
             SuiValidationError: If parameters are invalid
@@ -281,19 +295,23 @@ class ExtendedAPIClient:
         params = [query]
         if cursor is not None:
             params.append(cursor)
-        else:
-            params.append(None)
-            
-        if limit is not None:
+            if limit is not None:
+                params.append(limit)
+        elif limit is not None:
+            params.append(None)  # cursor placeholder
             params.append(limit)
-        else:
-            params.append(None)
-            
-        params.append(descending_order)
         
-        return await self.rest_client.call("suix_queryTransactionBlocks", params)
+        # Add descending order parameter if specified
+        if descending_order:
+            # Pad params to ensure descending_order is in the right position
+            while len(params) < 3:
+                params.append(None)
+            params.append(descending_order)
+        
+        response = await self.rest_client.call("suix_queryTransactionBlocks", params)
+        return Page.from_dict(response, SuiTransactionBlockResponse.from_dict)
     
-    async def resolve_name_service_address(self, name: str) -> Optional[str]:
+    async def resolve_name_service_address(self, name: str) -> Optional[SuiAddress]:
         """
         Return the resolved address given resolver and name.
         
@@ -301,23 +319,28 @@ class ExtendedAPIClient:
             name: The name to resolve
             
         Returns:
-            The resolved address string, or None if not found
+            SuiAddress if resolved, None otherwise
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        if not isinstance(name, str) or not name.strip():
-            raise SuiValidationError("Name must be a non-empty string")
+        if not isinstance(name, str):
+            raise SuiValidationError("Name must be a string")
         
-        return await self.rest_client.call("suix_resolveNameServiceAddress", [name])
+        response = await self.rest_client.call("suix_resolveNameServiceAddress", [name])
+        
+        if response is None:
+            return None
+        
+        return SuiAddress.from_str(response)
     
     async def resolve_name_service_names(
         self,
-        address: str,
+        address: Union[str, SuiAddress],
         cursor: Optional[str] = None,
         limit: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> Page[str]:
         """
         Return the resolved names given address.
         
@@ -327,18 +350,15 @@ class ExtendedAPIClient:
             limit: Maximum number of items per page
             
         Returns:
-            Dictionary containing:
-            - data: List of resolved names
-            - hasNextPage: Boolean indicating if more pages exist
-            - nextCursor: Cursor for the next page (if hasNextPage is true)
+            Page of name strings
             
         Raises:
             SuiValidationError: If parameters are invalid
             SuiRPCError: If the RPC call fails
         """
-        self._validate_address(address)
+        address_str = self._validate_address(address)
         
-        params = [address]
+        params = [address_str]
         if cursor is not None:
             params.append(cursor)
             if limit is not None:
@@ -347,41 +367,43 @@ class ExtendedAPIClient:
             params.append(None)  # cursor placeholder
             params.append(limit)
         
-        return await self.rest_client.call("suix_resolveNameServiceNames", params)
-    
-    # Note: Subscription methods (suix_subscribeEvents, suix_subscribeTransaction)
-    # require WebSocket support and are not implemented in this REST client.
-    # They would need a separate WebSocket client implementation.
+        response = await self.rest_client.call("suix_resolveNameServiceNames", params)
+        return Page.from_dict(response)  # No parser needed for strings
     
     def _subscription_not_supported(self, method_name: str) -> None:
         """
-        Helper method to indicate subscription methods are not supported.
+        Helper method to indicate subscription methods are not supported in REST client.
         
         Args:
             method_name: The name of the subscription method
             
         Raises:
-            SuiValidationError: Always, indicating subscriptions are not supported
+            SuiValidationError: Always, indicating WebSocket is required
         """
         raise SuiValidationError(
-            f"{method_name} requires WebSocket support and is not available "
-            "in the REST client. Use a WebSocket client for real-time subscriptions."
+            f"{method_name} requires WebSocket connection. "
+            "REST client only supports request-response methods. "
+            "Use a WebSocket client for subscription methods."
         )
     
     async def subscribe_events(self, *args, **kwargs) -> None:
         """
-        Subscription method not supported in REST client.
+        Subscribe to events (requires WebSocket).
+        
+        This method is not supported in the REST client.
         
         Raises:
-            SuiValidationError: Always, indicating subscriptions are not supported
+            SuiValidationError: Always, indicating WebSocket is required
         """
-        self._subscription_not_supported("suix_subscribeEvents")
+        self._subscription_not_supported("subscribe_events")
     
     async def subscribe_transaction(self, *args, **kwargs) -> None:
         """
-        Subscription method not supported in REST client.
+        Subscribe to transactions (requires WebSocket).
+        
+        This method is not supported in the REST client.
         
         Raises:
-            SuiValidationError: Always, indicating subscriptions are not supported
+            SuiValidationError: Always, indicating WebSocket is required
         """
-        self._subscription_not_supported("suix_subscribeTransaction") 
+        self._subscription_not_supported("subscribe_transaction") 

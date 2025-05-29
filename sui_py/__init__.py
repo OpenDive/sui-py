@@ -15,7 +15,19 @@ from .types import (
     # Coin types
     Balance, Coin, SuiCoinMetadata, Supply,
     # Pagination
-    Page
+    Page,
+    # Extended API enums
+    EventType, ObjectDataOptions,
+    # Dynamic fields
+    DynamicFieldName, DynamicFieldInfo,
+    # Objects
+    ObjectOwner, SuiObjectData, SuiObjectResponse,
+    # Events
+    SuiEvent,
+    # Transactions
+    TransactionBlockResponseOptions, SuiTransactionBlock, SuiTransactionBlockResponse,
+    # Query filters
+    EventFilter, TransactionFilter
 )
 
 __all__ = [
@@ -42,4 +54,29 @@ __all__ = [
     
     # Pagination
     "Page",
+    
+    # Extended API enums
+    "EventType",
+    "ObjectDataOptions",
+    
+    # Dynamic fields
+    "DynamicFieldName",
+    "DynamicFieldInfo",
+    
+    # Objects
+    "ObjectOwner",
+    "SuiObjectData",
+    "SuiObjectResponse",
+    
+    # Events
+    "SuiEvent",
+    
+    # Transactions
+    "TransactionBlockResponseOptions",
+    "SuiTransactionBlock",
+    "SuiTransactionBlockResponse",
+    
+    # Query filters
+    "EventFilter",
+    "TransactionFilter",
 ] 
