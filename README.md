@@ -42,15 +42,71 @@ async with SuiClient("mainnet") as client:
 
 ## Installation
 
+### From PyPI (Coming Soon)
 ```bash
-pip install sui-py  # Coming soon
+pip install sui-py
 ```
 
-For development:
+### Development Setup
+
+#### Option 1: Automated Setup (Recommended)
+
+**Using Python script** (cross-platform):
 ```bash
 git clone https://github.com/your-org/sui-py
 cd sui-py
+python scripts/setup_dev.py
+```
+
+**Using Bash script** (macOS/Linux):
+```bash
+git clone https://github.com/your-org/sui-py
+cd sui-py
+./scripts/setup_dev.sh
+```
+
+#### Option 2: Manual Setup
+
+1. **Clone the repository**:
+```bash
+git clone https://github.com/your-org/sui-py
+cd sui-py
+```
+
+2. **Create and activate a virtual environment**:
+
+**Using venv (recommended)**:
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate on macOS/Linux
+source venv/bin/activate
+
+# Activate on Windows
+venv\Scripts\activate
+```
+
+**Using conda**:
+```bash
+# Create virtual environment
+conda create -n sui-py python=3.8+
+conda activate sui-py
+```
+
+3. **Install dependencies**:
+```bash
 pip install -r requirements.txt
+```
+
+4. **Install in development mode** (optional):
+```bash
+pip install -e .
+```
+
+5. **Install development tools** (optional):
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ## Quick Start

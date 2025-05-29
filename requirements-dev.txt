@@ -1,0 +1,34 @@
+# Development dependencies for SuiPy SDK
+
+# Core testing framework - essential for running unit and integration tests
+pytest>=7.0.0
+
+# Async testing support - required for testing our async-first SDK design
+pytest-asyncio>=0.21.0
+
+# Code formatting - ensures consistent code style across the project
+black>=23.0.0
+
+# Import sorting - organizes imports consistently (works well with black)
+isort>=5.12.0
+
+# Type checking - validates type hints throughout the codebase
+mypy>=1.0.0
+
+# Code linting - catches potential bugs and enforces coding standards
+flake8>=6.0.0
+
+# Git hooks framework - automates code quality checks before commits
+pre-commit>=3.0.0
+
+# Documentation generation - for building API docs and user guides
+sphinx>=5.0.0
+
+# Documentation theme - provides clean, professional documentation styling
+sphinx-rtd-theme>=1.2.0
+
+# Test coverage reporting - measures how much code is covered by tests
+pytest-cov>=4.0.0
+
+# Mocking utilities - useful for testing external API calls and dependencies
+pytest-mock>=3.10.0 
