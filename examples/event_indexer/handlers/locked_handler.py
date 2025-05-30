@@ -50,26 +50,21 @@ class LockDestroyed:
 
 async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prisma) -> None:
     """
-    Handle all events emitted by the 'lock' module.
-    
-    Data is modeled in a way that allows writing to the DB in any order (DESC or ASC) without
-    resulting in data inconsistencies. We construct updates to support multiple events involving
-    a single record as part of the same batch of events.
+    Handle lock object events from the 'lock' module.
     
     Args:
-        events: List of typed SuiEvent objects
-        event_type: The event type string for validation
-        db: Prisma database client
+        events: List of typed SuiEvent objects to process
+        event_type: Type identifier for logging
+        db: Prisma database connection
     """
-    if not events:
-        return
+    logger.info(f"🔒 LOCK HANDLER: Processing {len(events)} events of type {event_type}")
     
-    logger.info(f"Processing {len(events)} lock events")
-    
-    # Track updates by lock_id to handle multiple events for the same object
+    # Collect updates keyed by lock object ID
     updates: Dict[str, Dict[str, Any]] = {}
     
-    for event in events:
+    for i, event in enumerate(events):
+        logger.debug(f"🔍 Processing lock event {i+1}/{len(events)}: {event.type}")
+        
         # Validate event origin
         if not event.type.startswith(event_type):
             logger.error(f"Invalid event module origin: {event.type} does not start with {event_type}")
@@ -81,57 +76,59 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
             continue
         
         data = event.parsed_json
+        logger.debug(f"📊 Event data: {data}")
         
-        # Determine lock_id from the event data
-        lock_id = data.get("lock_id")
-        if not lock_id:
-            logger.warning(f"Event {event.id} missing lock_id, skipping")
+        # Determine locked_id from the event data
+        locked_id = data.get("locked_id")
+        if not locked_id:
+            logger.warning(f"Event {event.id} missing locked_id, skipping")
             continue
         
-        # Check if this is a deletion event (no key_id field)
-        is_deletion_event = "key_id" not in data
+        logger.debug(f"🆔 Processing locked ID: {locked_id}")
         
         # Initialize update record if not exists
-        if lock_id not in updates:
-            updates[lock_id] = {
-                "objectId": lock_id,
-                "deleted": False
+        if locked_id not in updates:
+            updates[locked_id] = {
+                "objectId": locked_id,
+                "unlocked": False
             }
         
         # Process different event types
-        if is_deletion_event or event.type.endswith("::LockDestroyed") or "Destroyed" in event.type:
-            logger.debug(f"Processing LockDestroyed for {lock_id}")
-            lock_destroyed = LockDestroyed(data)
-            updates[lock_id]["deleted"] = True
-            
-        elif event.type.endswith("::LockCreated") or "Created" in event.type:
-            logger.debug(f"Processing LockCreated for {lock_id}")
-            lock_created = LockCreated(data)
-            updates[lock_id].update({
-                "creator": lock_created.creator,
-                "keyId": lock_created.key_id,
-                "itemId": lock_created.item_id
+        if event.type.endswith("::LockedCreated") or "Created" in event.type:
+            logger.info(f"🔐 Processing LockedCreated for {locked_id}")
+            locked_created = LockedCreated(data)
+            updates[locked_id].update({
+                "sender": locked_created.sender,
+                "keyId": locked_created.key_id,
+                "itemId": locked_created.item_id
             })
+            
+        elif event.type.endswith("::Unlocked"):
+            logger.info(f"🔓 Processing Unlocked for {locked_id}")
+            updates[locked_id]["unlocked"] = True
         else:
-            logger.warning(f"Unknown lock event type: {event.type}")
+            logger.warning(f"❓ Unknown lock event type: {event.type}")
     
     if not updates:
-        logger.info("No valid lock updates to process")
+        logger.info("😴 No valid lock updates to process")
         return
     
+    logger.info(f"💾 Saving {len(updates)} lock updates to database...")
+    
     # Perform database operations using Prisma upserts
-    for lock_data in updates.values():
+    for locked_data in updates.values():
         try:
+            logger.debug(f"💾 Upserting locked: {locked_data['objectId']}")
             await db.locked.upsert(
-                where={"objectId": lock_data["objectId"]},
+                where={"objectId": locked_data["objectId"]},
                 data={
-                    key: value for key, value in lock_data.items() 
+                    key: value for key, value in locked_data.items() 
                     if key != "objectId"
                 },
-                create=lock_data
+                create=locked_data
             )
         except Exception as e:
-            logger.error(f"Failed to upsert lock {lock_data['objectId']}: {e}")
+            logger.error(f"Failed to upsert locked {locked_data['objectId']}: {e}")
             raise
     
-    logger.info(f"Successfully processed {len(updates)} lock object updates") 
+    logger.info(f"✅ Successfully processed {len(updates)} lock object updates") 

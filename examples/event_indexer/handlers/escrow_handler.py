@@ -58,26 +58,21 @@ class EscrowCancelled:
 
 async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Prisma) -> None:
     """
-    Handle all events emitted by the 'shared' module.
-    
-    Data is modeled in a way that allows writing to the DB in any order (DESC or ASC) without
-    resulting in data inconsistencies. We construct updates to support multiple events involving
-    a single record as part of the same batch of events.
+    Handle escrow object events from the 'shared' module.
     
     Args:
-        events: List of typed SuiEvent objects
-        event_type: The event type string for validation
-        db: Prisma database client
+        events: List of typed SuiEvent objects to process
+        event_type: Type identifier for logging
+        db: Prisma database connection
     """
-    if not events:
-        return
+    logger.info(f"🏪 ESCROW HANDLER: Processing {len(events)} events of type {event_type}")
     
-    logger.info(f"Processing {len(events)} escrow events")
-    
-    # Track updates by escrow_id to handle multiple events for the same object
+    # Collect updates keyed by escrow object ID
     updates: Dict[str, Dict[str, Any]] = {}
     
-    for event in events:
+    for i, event in enumerate(events):
+        logger.debug(f"🔍 Processing escrow event {i+1}/{len(events)}: {event.type}")
+        
         # Validate event origin
         if not event.type.startswith(event_type):
             logger.error(f"Invalid event module origin: {event.type} does not start with {event_type}")
@@ -89,12 +84,15 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Pri
             continue
         
         data = event.parsed_json
+        logger.debug(f"📊 Event data: {data}")
         
         # Determine escrow_id from the event data
         escrow_id = data.get("escrow_id")
         if not escrow_id:
             logger.warning(f"Event {event.id} missing escrow_id, skipping")
             continue
+        
+        logger.debug(f"🆔 Processing escrow ID: {escrow_id}")
         
         # Initialize update record if not exists
         if escrow_id not in updates:
@@ -106,17 +104,17 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Pri
         
         # Process different event types
         if event.type.endswith("::EscrowCancelled"):
-            logger.debug(f"Processing EscrowCancelled for {escrow_id}")
+            logger.info(f"❌ Processing EscrowCancelled for {escrow_id}")
             escrow_cancelled = EscrowCancelled(data)
             updates[escrow_id]["cancelled"] = True
             
         elif event.type.endswith("::EscrowSwapped"):
-            logger.debug(f"Processing EscrowSwapped for {escrow_id}")
+            logger.info(f"🔄 Processing EscrowSwapped for {escrow_id}")
             escrow_swapped = EscrowSwapped(data)
             updates[escrow_id]["swapped"] = True
             
         elif event.type.endswith("::EscrowCreated") or "Created" in event.type:
-            logger.debug(f"Processing EscrowCreated for {escrow_id}")
+            logger.info(f"✨ Processing EscrowCreated for {escrow_id}")
             escrow_created = EscrowCreated(data)
             updates[escrow_id].update({
                 "sender": escrow_created.sender,
@@ -125,15 +123,18 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Pri
                 "itemId": escrow_created.item_id
             })
         else:
-            logger.warning(f"Unknown escrow event type: {event.type}")
+            logger.warning(f"❓ Unknown escrow event type: {event.type}")
     
     if not updates:
-        logger.info("No valid escrow updates to process")
+        logger.info("😴 No valid escrow updates to process")
         return
+    
+    logger.info(f"💾 Saving {len(updates)} escrow updates to database...")
     
     # Perform database operations using Prisma upserts
     for escrow_data in updates.values():
         try:
+            logger.debug(f"💾 Upserting escrow: {escrow_data['objectId']}")
             await db.escrow.upsert(
                 where={"objectId": escrow_data["objectId"]},
                 data={
@@ -146,4 +147,4 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Pri
             logger.error(f"Failed to upsert escrow {escrow_data['objectId']}: {e}")
             raise
     
-    logger.info(f"Successfully processed {len(updates)} escrow object updates") 
+    logger.info(f"✅ Successfully processed {len(updates)} escrow object updates") 

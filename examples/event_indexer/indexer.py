@@ -212,7 +212,8 @@ class EventIndexer:
             EventExecutionResult with new cursor and pagination info
         """
         try:
-            logger.debug(f"Querying events for {tracker.type} from cursor {cursor}")
+            logger.debug(f"📡 Querying events for {tracker.type} from cursor {cursor}")
+            logger.debug(f"🔍 Using filter: {tracker.filter}")
             
             # Query events from the chain using typed Extended API
             events_page: Page[SuiEvent] = await self.client.extended_api.query_events(
@@ -222,15 +223,32 @@ class EventIndexer:
                 descending_order=False  # Process in ascending order
             )
             
-            logger.debug(f"Retrieved {len(events_page)} events for {tracker.type}")
+            event_count = len(events_page)
+            logger.debug(f"📥 Retrieved {event_count} events for {tracker.type}")
             
-            # Process events if any were found
-            if len(events_page) > 0:
+            if event_count > 0:
+                logger.info(f"🎯 EVENTS DETECTED! Found {event_count} new events for {tracker.type}")
+                
+                # Log details about each event
+                for i, event in enumerate(events_page):
+                    logger.info(f"📝 Event {i+1}/{event_count}: {event.type}")
+                    logger.debug(f"   📍 ID: {event.id}")
+                    logger.debug(f"   👤 Sender: {event.sender}")
+                    logger.debug(f"   📦 Package: {event.package_id}")
+                    logger.debug(f"   🏷️  Module: {event.transaction_module}")
+                    if event.timestamp_ms:
+                        logger.debug(f"   ⏰ Timestamp: {event.timestamp_ms}")
+                    if event.parsed_json:
+                        logger.debug(f"   📊 Data: {event.parsed_json}")
+                
                 # Handle the events using the tracker's callback
+                logger.info(f"🔄 Processing {event_count} events with handler...")
                 await tracker.callback(list(events_page), tracker.type, self.db)
+                logger.info(f"✅ Successfully processed {event_count} events for {tracker.type}")
                 
                 # Save the latest cursor if we have a next cursor
                 if events_page.next_cursor:
+                    logger.debug(f"💾 Saving new cursor: {events_page.next_cursor}")
                     await self._save_latest_cursor(tracker, events_page.next_cursor)
                 
                 return EventExecutionResult(
@@ -238,7 +256,7 @@ class EventIndexer:
                     has_next_page=events_page.has_next_page
                 )
             else:
-                logger.debug(f"No new events for {tracker.type}")
+                logger.debug(f"😴 No new events for {tracker.type}")
                 
         except SuiRPCError as e:
             logger.error(f"RPC error querying events for {tracker.type}: {e}")
@@ -332,11 +350,15 @@ class EventIndexer:
 
 async def main():
     """Main entry point for the event indexer."""
-    # Configure logging
+    # Configure logging with DEBUG level for detailed event tracking
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    
+    logger.info("🚀 Starting SuiPy Event Indexer with DEBUG logging")
+    logger.info(f"📦 Package ID: {CONFIG.swap_contract.package_id}")
+    logger.info(f"🌐 RPC URL: {CONFIG.rpc_url}")
     
     # Create and start indexer
     indexer = EventIndexer()
