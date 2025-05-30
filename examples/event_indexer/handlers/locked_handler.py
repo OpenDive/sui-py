@@ -8,13 +8,10 @@ processing lock creation and destruction events using typed SuiEvent objects.
 import logging
 from typing import Any, Dict, List
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from prisma import Prisma
+from prisma.models import Locked
 
 from sui_py import SuiEvent
-from ..models import Locked
 from ..config import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -37,7 +34,7 @@ class LockDestroyed:
         self.lock_id = data["lock_id"]
 
 
-async def handle_lock_objects(events: List[SuiEvent], event_type: str, session: AsyncSession) -> None:
+async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prisma) -> None:
     """
     Handle all events emitted by the 'lock' module.
     
@@ -48,7 +45,7 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, session: 
     Args:
         events: List of typed SuiEvent objects
         event_type: The event type string for validation
-        session: Database session for operations
+        db: Prisma database client
     """
     if not events:
         return
@@ -83,7 +80,7 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, session: 
         # Initialize update record if not exists
         if lock_id not in updates:
             updates[lock_id] = {
-                "object_id": lock_id,
+                "objectId": lock_id,
                 "deleted": False
             }
         
@@ -98,8 +95,8 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, session: 
             lock_created = LockCreated(data)
             updates[lock_id].update({
                 "creator": lock_created.creator,
-                "key_id": lock_created.key_id,
-                "item_id": lock_created.item_id
+                "keyId": lock_created.key_id,
+                "itemId": lock_created.item_id
             })
         else:
             logger.warning(f"Unknown lock event type: {event.type}")
@@ -108,92 +105,19 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, session: 
         logger.info("No valid lock updates to process")
         return
     
-    # Perform database operations
-    await _upsert_lock_records(session, list(updates.values()))
+    # Perform database operations using Prisma upserts
+    for lock_data in updates.values():
+        try:
+            await db.locked.upsert(
+                where={"objectId": lock_data["objectId"]},
+                data={
+                    key: value for key, value in lock_data.items() 
+                    if key != "objectId"
+                },
+                create=lock_data
+            )
+        except Exception as e:
+            logger.error(f"Failed to upsert lock {lock_data['objectId']}: {e}")
+            raise
     
-    logger.info(f"Successfully processed {len(updates)} lock object updates")
-
-
-async def _upsert_lock_records(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """
-    Upsert lock records into the database.
-    
-    Uses database-specific upsert functionality for efficient bulk operations.
-    For SQLite, we use individual upserts due to limited bulk upsert support.
-    For PostgreSQL, we can use more efficient bulk upserts.
-    
-    Args:
-        session: Database session
-        records: List of lock record dictionaries
-    """
-    if not records:
-        return
-    
-    # Determine database type from connection URL
-    db_url = str(session.bind.url)
-    
-    if "sqlite" in db_url:
-        await _upsert_lock_records_sqlite(session, records)
-    elif "postgresql" in db_url:
-        await _upsert_lock_records_postgresql(session, records)
-    else:
-        # Fallback to individual upserts
-        await _upsert_lock_records_individual(session, records)
-
-
-async def _upsert_lock_records_sqlite(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """SQLite-specific upsert implementation."""
-    for record in records:
-        stmt = sqlite_insert(Locked).values(**record)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["object_id"],
-            set_={
-                key: stmt.excluded[key] 
-                for key in record.keys() 
-                if key != "object_id"
-            }
-        )
-        await session.execute(stmt)
-    
-    await session.commit()
-
-
-async def _upsert_lock_records_postgresql(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """PostgreSQL-specific bulk upsert implementation."""
-    if not records:
-        return
-    
-    stmt = postgresql_insert(Locked).values(records)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["object_id"],
-        set_={
-            "creator": stmt.excluded.creator,
-            "key_id": stmt.excluded.key_id,
-            "item_id": stmt.excluded.item_id,
-            "deleted": stmt.excluded.deleted,
-            "updated_at": stmt.excluded.updated_at
-        }
-    )
-    await session.execute(stmt)
-    await session.commit()
-
-
-async def _upsert_lock_records_individual(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """Fallback individual upsert implementation."""
-    for record in records:
-        # Check if record exists
-        stmt = select(Locked).where(Locked.object_id == record["object_id"])
-        result = await session.execute(stmt)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            # Update existing record
-            for key, value in record.items():
-                if key != "object_id":
-                    setattr(existing, key, value)
-        else:
-            # Create new record
-            locked = Locked(**record)
-            session.add(locked)
-    
-    await session.commit() 
+    logger.info(f"Successfully processed {len(updates)} lock object updates") 

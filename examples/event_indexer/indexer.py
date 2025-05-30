@@ -10,15 +10,26 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+# Auto-setup integration
+from .setup import setup_with_fallback, ensure_prisma_client
+
+# Import Prisma after ensuring it's set up
+try:
+    from prisma import Prisma
+    from prisma.models import Cursor
+except ImportError as e:
+    print("❌ Prisma client not available. Running auto-setup...")
+    if not setup_with_fallback():
+        print("❌ Failed to set up Prisma client. Please run setup manually.")
+        exit(1)
+    # Try importing again after setup
+    from prisma import Prisma
+    from prisma.models import Cursor
 
 from sui_py import SuiClient, SuiEvent, EventFilter, Page
 from sui_py.exceptions import SuiRPCError, SuiValidationError
 
 from .config import CONFIG
-from .database import database, get_db_session
-from .models import Cursor
 from .handlers import handle_escrow_objects, handle_lock_objects
 
 logger = logging.getLogger(__name__)
@@ -39,7 +50,7 @@ class EventTracker:
     # Event filter for querying
     filter: Dict[str, Any]
     # Callback function to handle events
-    callback: Callable[[List[SuiEvent], str, AsyncSession], Any]
+    callback: Callable[[List[SuiEvent], str, Prisma], Any]
 
 
 class EventIndexer:
@@ -48,6 +59,7 @@ class EventIndexer:
     def __init__(self):
         """Initialize the event indexer."""
         self.client: Optional[SuiClient] = None
+        self.db: Optional[Prisma] = None
         self.running = False
         
         # Define events to track
@@ -67,13 +79,22 @@ class EventIndexer:
     async def start(self) -> None:
         """Start the event indexer."""
         logger.info("Starting SuiPy Event Indexer...")
+        
+        # Ensure Prisma client is ready
+        if not ensure_prisma_client():
+            logger.error("Failed to set up database client. Cannot start indexer.")
+            return
+        
         logger.info(f"Network: {CONFIG.network}")
         logger.info(f"RPC URL: {CONFIG.rpc_url}")
         logger.info(f"Swap Contract: {CONFIG.swap_contract.package_id}")
+        logger.info(f"Database URL: {CONFIG.database_url}")
         logger.info(f"Polling Interval: {CONFIG.polling_interval_ms}ms")
         
-        # Initialize database
-        await database.create_tables()
+        # Initialize Prisma database
+        self.db = Prisma()
+        await self.db.connect()
+        logger.info("Connected to database")
         
         # Initialize Sui client
         self.client = SuiClient(CONFIG.rpc_url)
@@ -90,7 +111,9 @@ class EventIndexer:
         if self.client:
             await self.client.close()
         
-        await database.close()
+        if self.db:
+            await self.db.disconnect()
+        
         logger.info("Event indexer stopped")
     
     async def _setup_listeners(self) -> None:
@@ -190,13 +213,12 @@ class EventIndexer:
             
             # Process events if any were found
             if len(events_page) > 0:
-                async with database.get_session() as session:
-                    # Handle the events using the tracker's callback
-                    await tracker.callback(list(events_page), tracker.type, session)
-                    
-                    # Save the latest cursor if we have a next cursor
-                    if events_page.next_cursor:
-                        await self._save_latest_cursor(tracker, events_page.next_cursor, session)
+                # Handle the events using the tracker's callback
+                await tracker.callback(list(events_page), tracker.type, self.db)
+                
+                # Save the latest cursor if we have a next cursor
+                if events_page.next_cursor:
+                    await self._save_latest_cursor(tracker, events_page.next_cursor)
                 
                 return EventExecutionResult(
                     cursor=events_page.next_cursor,
@@ -231,28 +253,26 @@ class EventIndexer:
         Returns:
             Latest cursor string or None if not found
         """
-        async with database.get_session() as session:
-            stmt = select(Cursor).where(Cursor.id == tracker.type)
-            result = await session.execute(stmt)
-            cursor_record = result.scalar_one_or_none()
-            
-            if cursor_record:
-                # Reconstruct cursor from stored components
-                cursor = {
-                    "txDigest": cursor_record.tx_digest,
-                    "eventSeq": cursor_record.event_seq
-                }
-                logger.info(f"Resuming {tracker.type} from cursor: {cursor}")
-                return cursor
-            else:
-                logger.info(f"No previous cursor found for {tracker.type}, starting from beginning")
-                return None
+        cursor_record = await self.db.cursor.find_unique(
+            where={"id": tracker.type}
+        )
+        
+        if cursor_record:
+            # Reconstruct cursor from stored components
+            cursor = {
+                "txDigest": cursor_record.txDigest,
+                "eventSeq": cursor_record.eventSeq
+            }
+            logger.info(f"Resuming {tracker.type} from cursor: {cursor}")
+            return cursor
+        else:
+            logger.info(f"No previous cursor found for {tracker.type}, starting from beginning")
+            return None
     
     async def _save_latest_cursor(
         self, 
         tracker: EventTracker, 
-        cursor: Any, 
-        session: AsyncSession
+        cursor: Any
     ) -> None:
         """
         Save the latest cursor for an event tracker to the database.
@@ -260,7 +280,6 @@ class EventIndexer:
         Args:
             tracker: Event tracker configuration
             cursor: Cursor object from the API response
-            session: Database session
         """
         if not cursor:
             return
@@ -278,26 +297,24 @@ class EventIndexer:
             logger.warning(f"Invalid cursor data for {tracker.type}: {cursor}")
             return
         
-        # Check if cursor record exists
-        stmt = select(Cursor).where(Cursor.id == tracker.type)
-        result = await session.execute(stmt)
-        existing_cursor = result.scalar_one_or_none()
-        
-        if existing_cursor:
-            # Update existing cursor
-            existing_cursor.tx_digest = tx_digest
-            existing_cursor.event_seq = event_seq
-        else:
-            # Create new cursor record
-            new_cursor = Cursor(
-                id=tracker.type,
-                tx_digest=tx_digest,
-                event_seq=event_seq
+        # Upsert cursor record using Prisma
+        try:
+            await self.db.cursor.upsert(
+                where={"id": tracker.type},
+                data={
+                    "txDigest": tx_digest,
+                    "eventSeq": event_seq
+                },
+                create={
+                    "id": tracker.type,
+                    "txDigest": tx_digest,
+                    "eventSeq": event_seq
+                }
             )
-            session.add(new_cursor)
-        
-        await session.commit()
-        logger.debug(f"Saved cursor for {tracker.type}: {tx_digest}:{event_seq}")
+            logger.debug(f"Saved cursor for {tracker.type}: {tx_digest}:{event_seq}")
+        except Exception as e:
+            logger.error(f"Failed to save cursor for {tracker.type}: {e}")
+            raise
 
 
 async def main():

@@ -8,13 +8,10 @@ processing escrow creation, swapping, and cancellation events using typed SuiEve
 import logging
 from typing import Any, Dict, List
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from prisma import Prisma
+from prisma.models import Escrow
 
 from sui_py import SuiEvent
-from ..models import Escrow
 from ..config import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -45,7 +42,7 @@ class EscrowCancelled:
         self.escrow_id = data["escrow_id"]
 
 
-async def handle_escrow_objects(events: List[SuiEvent], event_type: str, session: AsyncSession) -> None:
+async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Prisma) -> None:
     """
     Handle all events emitted by the 'shared' module.
     
@@ -56,7 +53,7 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, session
     Args:
         events: List of typed SuiEvent objects
         event_type: The event type string for validation
-        session: Database session for operations
+        db: Prisma database client
     """
     if not events:
         return
@@ -88,7 +85,7 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, session
         # Initialize update record if not exists
         if escrow_id not in updates:
             updates[escrow_id] = {
-                "object_id": escrow_id,
+                "objectId": escrow_id,
                 "swapped": False,
                 "cancelled": False
             }
@@ -110,8 +107,8 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, session
             updates[escrow_id].update({
                 "sender": escrow_created.sender,
                 "recipient": escrow_created.recipient,
-                "key_id": escrow_created.key_id,
-                "item_id": escrow_created.item_id
+                "keyId": escrow_created.key_id,
+                "itemId": escrow_created.item_id
             })
         else:
             logger.warning(f"Unknown escrow event type: {event.type}")
@@ -120,94 +117,19 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, session
         logger.info("No valid escrow updates to process")
         return
     
-    # Perform database operations
-    await _upsert_escrow_records(session, list(updates.values()))
+    # Perform database operations using Prisma upserts
+    for escrow_data in updates.values():
+        try:
+            await db.escrow.upsert(
+                where={"objectId": escrow_data["objectId"]},
+                data={
+                    key: value for key, value in escrow_data.items() 
+                    if key != "objectId"
+                },
+                create=escrow_data
+            )
+        except Exception as e:
+            logger.error(f"Failed to upsert escrow {escrow_data['objectId']}: {e}")
+            raise
     
-    logger.info(f"Successfully processed {len(updates)} escrow object updates")
-
-
-async def _upsert_escrow_records(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """
-    Upsert escrow records into the database.
-    
-    Uses database-specific upsert functionality for efficient bulk operations.
-    For SQLite, we use individual upserts due to limited bulk upsert support.
-    For PostgreSQL, we can use more efficient bulk upserts.
-    
-    Args:
-        session: Database session
-        records: List of escrow record dictionaries
-    """
-    if not records:
-        return
-    
-    # Determine database type from connection URL
-    db_url = str(session.bind.url)
-    
-    if "sqlite" in db_url:
-        await _upsert_escrow_records_sqlite(session, records)
-    elif "postgresql" in db_url:
-        await _upsert_escrow_records_postgresql(session, records)
-    else:
-        # Fallback to individual upserts
-        await _upsert_escrow_records_individual(session, records)
-
-
-async def _upsert_escrow_records_sqlite(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """SQLite-specific upsert implementation."""
-    for record in records:
-        stmt = sqlite_insert(Escrow).values(**record)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["object_id"],
-            set_={
-                key: stmt.excluded[key] 
-                for key in record.keys() 
-                if key != "object_id"
-            }
-        )
-        await session.execute(stmt)
-    
-    await session.commit()
-
-
-async def _upsert_escrow_records_postgresql(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """PostgreSQL-specific bulk upsert implementation."""
-    if not records:
-        return
-    
-    stmt = postgresql_insert(Escrow).values(records)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["object_id"],
-        set_={
-            "sender": stmt.excluded.sender,
-            "recipient": stmt.excluded.recipient,
-            "key_id": stmt.excluded.key_id,
-            "item_id": stmt.excluded.item_id,
-            "swapped": stmt.excluded.swapped,
-            "cancelled": stmt.excluded.cancelled,
-            "updated_at": stmt.excluded.updated_at
-        }
-    )
-    await session.execute(stmt)
-    await session.commit()
-
-
-async def _upsert_escrow_records_individual(session: AsyncSession, records: List[Dict[str, Any]]) -> None:
-    """Fallback individual upsert implementation."""
-    for record in records:
-        # Check if record exists
-        stmt = select(Escrow).where(Escrow.object_id == record["object_id"])
-        result = await session.execute(stmt)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            # Update existing record
-            for key, value in record.items():
-                if key != "object_id":
-                    setattr(existing, key, value)
-        else:
-            # Create new record
-            escrow = Escrow(**record)
-            session.add(escrow)
-    
-    await session.commit() 
+    logger.info(f"Successfully processed {len(updates)} escrow object updates") 
