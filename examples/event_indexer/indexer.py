@@ -109,6 +109,8 @@ class EventIndexer:
         
         # Initialize Sui client
         self.client = SuiClient(CONFIG.rpc_url)
+        await self.client.connect()
+        logger.info("Connected to Sui network")
         
         # Start event listeners
         self.running = True
