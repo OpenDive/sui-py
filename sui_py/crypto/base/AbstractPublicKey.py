@@ -45,6 +45,23 @@ class AbstractPublicKey(ABC):
         """
         pass
     
+    @classmethod
+    @abstractmethod
+    def from_base64(cls, base64_string: str) -> "AbstractPublicKey":
+        """
+        Create a public key from a base64 string.
+        
+        Args:
+            base64_string: The public key as base64
+            
+        Returns:
+            A public key instance
+            
+        Raises:
+            ValueError: If the base64 string is invalid
+        """
+        pass
+    
     @abstractmethod
     def verify(self, message: bytes, signature: "AbstractSignature") -> bool:
         """
@@ -86,6 +103,16 @@ class AbstractPublicKey(ABC):
         
         Returns:
             The public key as hex string with 0x prefix
+        """
+        pass
+    
+    @abstractmethod
+    def to_base64(self) -> str:
+        """
+        Export the public key as a base64 string.
+        
+        Returns:
+            The public key as base64 string
         """
         pass
     

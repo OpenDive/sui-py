@@ -2,6 +2,7 @@
 Ed25519 public key implementation using PyNaCl.
 """
 
+import base64
 import hashlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -178,6 +179,15 @@ class PublicKey(AbstractPublicKey):
             The public key as hex string with 0x prefix
         """
         return "0x" + self.to_bytes().hex()
+    
+    def to_base64(self) -> str:
+        """
+        Export the public key as a base64 string.
+        
+        Returns:
+            The public key as base64 string
+        """
+        return base64.b64encode(self.to_bytes()).decode('utf-8')
     
     @property
     def scheme(self) -> SignatureScheme:

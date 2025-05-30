@@ -99,6 +99,16 @@ class AbstractPrivateKey(ABC):
         """
         pass
     
+    @abstractmethod
+    def to_base64(self) -> str:
+        """
+        Export the private key as a base64 string.
+        
+        Returns:
+            The private key as base64 string
+        """
+        pass
+    
     @property
     @abstractmethod
     def scheme(self) -> "SignatureScheme":
