@@ -30,6 +30,16 @@ from .types import (
     EventFilter, TransactionFilter
 )
 
+# Crypto primitives
+from .crypto import (
+    # Core abstractions
+    SignatureScheme, AbstractPrivateKey, AbstractPublicKey, AbstractSignature,
+    # Ed25519 implementations
+    Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature,
+    # Factory functions
+    create_private_key, import_private_key
+)
+
 __all__ = [
     # Client
     "SuiClient",
@@ -79,4 +89,15 @@ __all__ = [
     # Query filters
     "EventFilter",
     "TransactionFilter",
+    
+    # Crypto primitives
+    "SignatureScheme",
+    "AbstractPrivateKey",
+    "AbstractPublicKey", 
+    "AbstractSignature",
+    "Ed25519PrivateKey",
+    "Ed25519PublicKey",
+    "Ed25519Signature",
+    "create_private_key",
+    "import_private_key",
 ] 
