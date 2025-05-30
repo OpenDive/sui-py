@@ -38,6 +38,8 @@ from .crypto import (
     Signature,
     # Ed25519 implementations
     Ed25519PrivateKey, Ed25519PublicKey,
+    # Secp256k1 implementations
+    Secp256k1PrivateKey, Secp256k1PublicKey,
     # Factory functions
     create_private_key, import_private_key
 )
@@ -100,6 +102,8 @@ __all__ = [
     "Signature",
     "Ed25519PrivateKey",
     "Ed25519PublicKey",
+    "Secp256k1PrivateKey",
+    "Secp256k1PublicKey",
     "create_private_key",
     "import_private_key",
 ] 

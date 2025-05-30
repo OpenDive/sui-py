@@ -15,6 +15,12 @@ from .ed25519 import (
     PublicKey as Ed25519PublicKey
 )
 
+# Secp256k1 implementations
+from .secp256k1 import (
+    PrivateKey as Secp256k1PrivateKey,
+    PublicKey as Secp256k1PublicKey
+)
+
 __all__ = [
     # Core abstractions
     "SignatureScheme",
@@ -28,6 +34,10 @@ __all__ = [
     # Ed25519 implementations
     "Ed25519PrivateKey",
     "Ed25519PublicKey",
+    
+    # Secp256k1 implementations
+    "Secp256k1PrivateKey",
+    "Secp256k1PublicKey",
     
     # Factory functions
     "create_private_key",
@@ -51,7 +61,7 @@ def create_private_key(scheme: SignatureScheme) -> AbstractPrivateKey:
     if scheme == SignatureScheme.ED25519:
         return Ed25519PrivateKey.generate()
     elif scheme == SignatureScheme.SECP256K1:
-        raise NotImplementedError("Secp256k1 support coming soon")
+        return Secp256k1PrivateKey.generate()
     elif scheme == SignatureScheme.SECP256R1:
         raise NotImplementedError("Secp256r1 support coming soon")
     else:
@@ -75,7 +85,7 @@ def import_private_key(private_key_bytes: bytes, scheme: SignatureScheme) -> Abs
     if scheme == SignatureScheme.ED25519:
         return Ed25519PrivateKey.from_bytes(private_key_bytes)
     elif scheme == SignatureScheme.SECP256K1:
-        raise NotImplementedError("Secp256k1 support coming soon")
+        return Secp256k1PrivateKey.from_bytes(private_key_bytes)
     elif scheme == SignatureScheme.SECP256R1:
         raise NotImplementedError("Secp256r1 support coming soon")
     else:
