@@ -45,7 +45,7 @@ class ProgrammableTransactionBlock(BcsSerializable):
         commands_vector = bcs_vector(self.commands)
         commands_vector.serialize(serializer)
     
-    def serialize_to_bytes(self) -> bytes:
+    def to_bytes(self) -> bytes:
         """
         Serialize the PTB to BCS bytes.
         

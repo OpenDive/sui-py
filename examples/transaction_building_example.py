@@ -205,7 +205,7 @@ def serialization_round_trip_example():
     
     # Build and serialize
     original_ptb = tx.build()
-    bcs_bytes = original_ptb.serialize_to_bytes()
+    bcs_bytes = original_ptb.to_bytes()
     
     print(f"Original PTB:\n{original_ptb}")
     print(f"Serialized length: {len(bcs_bytes)} bytes")
@@ -218,8 +218,8 @@ def serialization_round_trip_example():
     print(f"Restored PTB:\n{restored_ptb}")
     
     # Verify they're equivalent
-    original_bytes = original_ptb.serialize_to_bytes()
-    restored_bytes = restored_ptb.serialize_to_bytes()
+    original_bytes = original_ptb.to_bytes()
+    restored_bytes = restored_ptb.to_bytes()
     
     print(f"Round trip successful: {original_bytes == restored_bytes}")
     print()
