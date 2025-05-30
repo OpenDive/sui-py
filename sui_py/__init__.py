@@ -11,7 +11,7 @@ from .client import SuiClient
 from .exceptions import SuiError, SuiRPCError, SuiValidationError
 from .types import (
     # Base types
-    SuiAddress, ObjectID, TransactionDigest, Base64, Hex,
+    SuiAddress, ObjectID, ObjectRef, TransactionDigest, Base64, Hex,
     # Coin types
     Balance, Coin, SuiCoinMetadata, Supply,
     # Pagination
@@ -44,6 +44,21 @@ from .crypto import (
     create_private_key, import_private_key
 )
 
+# Transaction building system
+from .transactions import (
+    # Builder
+    TransactionBuilder,
+    # PTB
+    ProgrammableTransactionBlock,
+    # Arguments
+    PureArgument, ObjectArgument, ResultArgument, GasCoinArgument,
+    # Commands
+    MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
+    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand,
+    # Utilities
+    BcsString
+)
+
 __all__ = [
     # Client
     "SuiClient",
@@ -55,7 +70,8 @@ __all__ = [
     
     # Base types
     "SuiAddress",
-    "ObjectID", 
+    "ObjectID",
+    "ObjectRef",
     "TransactionDigest",
     "Base64",
     "Hex",
@@ -106,4 +122,20 @@ __all__ = [
     "Secp256k1PublicKey",
     "create_private_key",
     "import_private_key",
+    
+    # Transaction building
+    "TransactionBuilder",
+    "ProgrammableTransactionBlock",
+    "PureArgument",
+    "ObjectArgument", 
+    "ResultArgument",
+    "GasCoinArgument",
+    "MoveCallCommand",
+    "TransferObjectsCommand",
+    "SplitCoinsCommand",
+    "MergeCoinsCommand",
+    "PublishCommand",
+    "UpgradeCommand", 
+    "MakeMoveVecCommand",
+    "BcsString",
 ] 
