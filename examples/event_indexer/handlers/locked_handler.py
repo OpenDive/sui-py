@@ -78,10 +78,6 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
         data = event.parsed_json
         logger.debug(f"📊 Event data: {data}")
         
-        # Debug: Log all available keys in the event data
-        logger.info(f"🔍 Available keys in event data: {list(data.keys())}")
-        logger.info(f"🎯 Event type: {event.type}")
-        
         # Determine lock_id from the event data (corrected field name)
         lock_id = data.get("lock_id")
         if not lock_id:
@@ -89,7 +85,6 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
             lock_id = data.get("locked_id") or data.get("id") or data.get("object_id")
             if not lock_id:
                 logger.warning(f"Event {{'txDigest': '{event.id.tx_digest}', 'eventSeq': '{event.id.event_seq}'}} missing lock_id, skipping")
-                logger.warning(f"Available data: {data}")
                 continue
         
         logger.debug(f"🆔 Processing lock ID: {lock_id}")

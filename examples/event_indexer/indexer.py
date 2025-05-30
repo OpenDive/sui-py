@@ -231,6 +231,10 @@ class EventIndexer:
                 # Process events with the appropriate handler
                 await tracker.callback(events, tracker.type, self.db)
                 logger.info(f"✅ Processed {len(events)} events for {tracker.type}")
+                
+                # Save cursor if we processed events (matching TypeScript logic)
+                if events_page.next_cursor:
+                    await self._save_latest_cursor(tracker, events_page.next_cursor)
             
             # Update cursor for next iteration
             next_cursor = events_page.next_cursor
