@@ -15,7 +15,9 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ✅ **BCS Serialization** - Complete Binary Canonical Serialization implementation
 
-🚧 **In Development** - Transaction Builder and Write APIs
+✅ **Transaction Building** - Complete Programmable Transaction Block (PTB) system
+
+🚧 **In Development** - Write APIs for transaction execution
 
 ### Async-First Design
 
@@ -32,6 +34,16 @@ async with SuiClient("mainnet") as client:
 ## Features
 
 ### ✅ Implemented
+
+- **Transaction Building System**: Complete Programmable Transaction Block (PTB) implementation
+  - **TransactionBuilder**: Fluent API for building complex transactions
+  - **Type-Safe Arguments**: PureArgument, ObjectArgument, ResultArgument with automatic conversion
+  - **Full Command Support**: Move calls, object transfers, coin operations, package management
+  - **Result Chaining**: Use outputs from one command as inputs to another
+  - **BCS Integration**: Complete serialization/deserialization with the existing BCS system
+  - **Input Deduplication**: Automatic optimization of duplicate inputs
+  - **Validation**: Comprehensive validation including forward reference detection
+  - **Error Handling**: Descriptive error messages for debugging
 
 - **BCS (Binary Canonical Serialization)**: Complete implementation following Move language specification
   - **Protocol-based Architecture**: Type-safe `Serializable`/`Deserializable` protocols
@@ -81,7 +93,6 @@ async with SuiClient("mainnet") as client:
 - Account abstraction with multi-scheme support
 - Mnemonic phrase support for key derivation
 - Read API (checkpoints, protocol config)
-- Transaction Builder API
 - Write API (transaction execution)
 - Governance Read API
 - Move Utils API
@@ -220,6 +231,53 @@ signature_hex = signature.to_hex()
 reconstructed_sig = Signature.from_hex(signature_hex, SignatureScheme.ED25519)
 ```
 
+### Transaction Building
+```python
+from sui_py import TransactionBuilder, ProgrammableTransactionBlock
+
+# Build a simple coin transfer transaction
+tx = TransactionBuilder()
+
+# Add inputs
+coin = tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+amount = tx.pure(1000, "u64")
+recipient = tx.pure("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
+
+# Split coins and transfer
+new_coins = tx.split_coins(coin, [amount])
+tx.transfer_objects([new_coins[0]], recipient)
+
+# Build the transaction
+ptb = tx.build()
+print(f"Transaction summary: {ptb}")
+
+# Get bytes for signing
+tx_bytes = tx.to_bcs_bytes()
+
+# Complex DeFi operations with result chaining
+defi_tx = TransactionBuilder()
+
+# Get gas coin and split for operations
+gas = defi_tx.gas_coin()
+operation_coins = defi_tx.split_coins(gas, [1000, 2000])
+
+# Call a Move function with the split coins
+pool = defi_tx.object("0x...")
+liquidity_result = defi_tx.move_call(
+    "0x123::pool::add_liquidity",
+    arguments=[pool, operation_coins[0]],
+    type_arguments=["0x2::sui::SUI", "0x456::token::USDC"]
+)
+
+# Use the result in another operation
+lp_tokens = liquidity_result.single()
+defi_tx.transfer_objects([lp_tokens], recipient)
+
+# Serialize the complex transaction
+complex_ptb = defi_tx.build()
+complex_bytes = defi_tx.to_bcs_bytes()
+```
+
 ### Coin Query API
 ```python
 import asyncio
@@ -327,6 +385,14 @@ python -m pytest tests/test_api.py -v
 
 The test suite covers:
 
+- **Transaction Building System**:
+  - ✅ Basic transaction construction (coin splits, transfers, Move calls)
+  - ✅ Complex result chaining and argument handling
+  - ✅ Package publishing and upgrading operations
+  - ✅ BCS serialization round-trip testing
+  - ✅ Input validation and error handling
+  - ✅ PTB validation and dependency checking
+
 - **BCS Implementation** (23 test cases):
   - ✅ All primitive types (U8, U16, U32, U64, U128, U256, Bool, Bytes, FixedBytes)
   - ✅ Container types (BcsVector, BcsOption) including nested containers
@@ -360,6 +426,7 @@ python -m mypy sui_py  # if configured
 
 ```python
 from sui_py import SuiClient, SuiError, SuiRPCError, SuiValidationError
+from sui_py import TransactionBuilder
 from sui_py.bcs import BcsError, SerializationError, DeserializationError
 
 # API Error Handling
@@ -372,6 +439,25 @@ async with SuiClient("mainnet") as client:
         print(f"RPC error {e.code}: {e}")
     except SuiError as e:
         print(f"General Sui error: {e}")
+
+# Transaction Building Error Handling
+try:
+    tx = TransactionBuilder()
+    tx.move_call("invalid_target")  # Invalid format
+except ValueError as e:
+    print(f"Invalid Move call: {e}")
+
+try:
+    tx = TransactionBuilder()
+    tx.object("invalid_object_id")  # Invalid object ID
+except ValueError as e:
+    print(f"Invalid object ID: {e}")
+
+try:
+    tx = TransactionBuilder()
+    ptb = tx.build()  # Empty transaction
+except ValueError as e:
+    print(f"Transaction validation failed: {e}")
 
 # BCS Error Handling
 try:
@@ -413,6 +499,7 @@ async with SuiClient("testnet") as client:
 ### Quick Examples
 
 See the `examples/` directory for complete usage examples:
+- `transaction_building_example.py` - Comprehensive transaction building with PTBs, result chaining, and BCS serialization
 - `coin_query_example.py` - Comprehensive Coin Query API usage
 - `extended_api_example.py` - Extended API usage with objects, events, and transactions
 - `crypto_example.py` - Cryptographic operations and key management
