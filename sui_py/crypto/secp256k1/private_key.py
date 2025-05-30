@@ -127,6 +127,29 @@ class PrivateKey(AbstractPrivateKey):
         except ValueError as e:
             raise SuiValidationError(f"Invalid hex string: {e}")
     
+    @classmethod
+    def from_base64(cls, base64_string: str) -> "PrivateKey":
+        """
+        Create a secp256k1 private key from a base64 string.
+        
+        Args:
+            base64_string: The private key as base64
+            
+        Returns:
+            A secp256k1 private key instance
+            
+        Raises:
+            SuiValidationError: If the base64 string is invalid
+        """
+        if not isinstance(base64_string, str):
+            raise SuiValidationError("Base64 string must be a string")
+        
+        try:
+            key_bytes = base64.b64decode(base64_string)
+            return cls.from_bytes(key_bytes)
+        except Exception as e:
+            raise SuiValidationError(f"Invalid base64 string: {e}")
+    
     def public_key(self) -> PublicKey:
         """
         Get the corresponding secp256k1 public key.

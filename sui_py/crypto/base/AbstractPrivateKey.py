@@ -56,6 +56,23 @@ class AbstractPrivateKey(ABC):
         """
         pass
     
+    @classmethod
+    @abstractmethod
+    def from_base64(cls, base64_string: str) -> "AbstractPrivateKey":
+        """
+        Create a private key from a base64 string.
+        
+        Args:
+            base64_string: The private key as base64
+            
+        Returns:
+            A private key instance
+            
+        Raises:
+            ValueError: If the base64 string is invalid
+        """
+        pass
+    
     @abstractmethod
     def public_key(self) -> "AbstractPublicKey":
         """

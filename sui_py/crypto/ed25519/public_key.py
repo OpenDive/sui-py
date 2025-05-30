@@ -97,6 +97,29 @@ class PublicKey(AbstractPublicKey):
         except ValueError as e:
             raise SuiValidationError(f"Invalid hex string: {e}")
     
+    @classmethod
+    def from_base64(cls, base64_string: str) -> "PublicKey":
+        """
+        Create an Ed25519 public key from a base64 string.
+        
+        Args:
+            base64_string: The public key as base64
+            
+        Returns:
+            An Ed25519 public key instance
+            
+        Raises:
+            SuiValidationError: If the base64 string is invalid
+        """
+        if not isinstance(base64_string, str):
+            raise SuiValidationError("Base64 string must be a string")
+        
+        try:
+            key_bytes = base64.b64decode(base64_string)
+            return cls.from_bytes(key_bytes)
+        except Exception as e:
+            raise SuiValidationError(f"Invalid base64 string: {e}")
+    
     def verify(self, message: bytes, signature: Signature) -> bool:
         """
         Verify a signature against a message.

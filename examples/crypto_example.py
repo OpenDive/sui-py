@@ -120,6 +120,23 @@ def main():
     print(f"✅ Secp256k1 private key: {secp256k1_private_hex[:20]}...")
     print(f"✅ Secp256k1 public key:  {secp256k1_public_hex[:20]}...")
     
+    # 6.5. Base64 Serialization (Both Schemes)
+    print("\n6.5. Base64 Serialization (Both Schemes)")
+    print("-" * 39)
+    
+    # Ed25519 base64 serialization
+    ed25519_private_b64 = ed25519_private_key.to_base64()
+    ed25519_public_b64 = ed25519_public_key.to_base64()
+    
+    # Secp256k1 base64 serialization  
+    secp256k1_private_b64 = secp256k1_private_key.to_base64()
+    secp256k1_public_b64 = secp256k1_public_key.to_base64()
+    
+    print(f"✅ Ed25519 private key (base64): {ed25519_private_b64[:20]}...")
+    print(f"✅ Ed25519 public key (base64):  {ed25519_public_b64[:20]}...")
+    print(f"✅ Secp256k1 private key (base64): {secp256k1_private_b64[:20]}...")
+    print(f"✅ Secp256k1 public key (base64):  {secp256k1_public_b64[:20]}...")
+    
     # 7. Key Import and Reconstruction
     print("\n7. Key Import and Reconstruction")
     print("-" * 31)
@@ -132,6 +149,12 @@ def main():
     imported_secp256k1_private = Secp256k1PrivateKey.from_hex(secp256k1_private_hex)
     imported_secp256k1_public = Secp256k1PublicKey.from_hex(secp256k1_public_hex)
     
+    # Import from base64
+    imported_ed25519_private_b64 = Ed25519PrivateKey.from_base64(ed25519_private_b64)
+    imported_ed25519_public_b64 = Ed25519PublicKey.from_base64(ed25519_public_b64)
+    imported_secp256k1_private_b64 = Secp256k1PrivateKey.from_base64(secp256k1_private_b64)
+    imported_secp256k1_public_b64 = Secp256k1PublicKey.from_base64(secp256k1_public_b64)
+    
     # Verify imported keys work
     ed25519_imported_sig = imported_ed25519_private.sign(message)
     secp256k1_imported_sig = imported_secp256k1_private.sign(message)
@@ -142,12 +165,29 @@ def main():
     print(f"✅ Ed25519 imported key verification: {ed25519_imported_verify}")
     print(f"✅ Secp256k1 imported key verification: {secp256k1_imported_verify}")
     
+    # Verify base64 imported keys work
+    ed25519_b64_sig = imported_ed25519_private_b64.sign(message)
+    secp256k1_b64_sig = imported_secp256k1_private_b64.sign(message)
+    
+    ed25519_b64_verify = imported_ed25519_public_b64.verify(message, ed25519_b64_sig)
+    secp256k1_b64_verify = imported_secp256k1_public_b64.verify(message, secp256k1_b64_sig)
+    
+    print(f"✅ Ed25519 base64 imported verification: {ed25519_b64_verify}")
+    print(f"✅ Secp256k1 base64 imported verification: {secp256k1_b64_verify}")
+    
     # Verify addresses match
     ed25519_imported_addr = imported_ed25519_public.to_sui_address()
     secp256k1_imported_addr = imported_secp256k1_public.to_sui_address()
     
     print(f"✅ Ed25519 addresses match: {ed25519_address == ed25519_imported_addr}")
     print(f"✅ Secp256k1 addresses match: {secp256k1_address == secp256k1_imported_addr}")
+    
+    # Verify base64 addresses match
+    ed25519_b64_addr = imported_ed25519_public_b64.to_sui_address()
+    secp256k1_b64_addr = imported_secp256k1_public_b64.to_sui_address()
+    
+    print(f"✅ Ed25519 base64 addresses match: {ed25519_address == ed25519_b64_addr}")
+    print(f"✅ Secp256k1 base64 addresses match: {secp256k1_address == secp256k1_b64_addr}")
     
     # 8. Signature Serialization
     print("\n8. Signature Serialization")
