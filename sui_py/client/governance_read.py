@@ -11,7 +11,7 @@ from .rest_client import RestClient
 from ..exceptions import SuiValidationError
 from ..types import (
     CommitteeInfo, DelegatedStake, ValidatorApys, SuiSystemStateSummary, 
-    SuiAddress, ObjectID, Page
+    SuiValidatorSummary, SuiAddress, ObjectID, Page
 )
 
 
@@ -238,7 +238,7 @@ class GovernanceReadClient:
             epoch=response["epoch"]
         )
 
-    def _parse_validator_summary(self, data: Dict[str, Any]) -> 'SuiValidatorSummary':
+    def _parse_validator_summary(self, data: Dict[str, Any]) -> SuiValidatorSummary:
         """
         Parse validator summary data from JSON response.
         
@@ -248,8 +248,6 @@ class GovernanceReadClient:
         Returns:
             SuiValidatorSummary object
         """
-        from ..types.governance import SuiValidatorSummary
-        
         return SuiValidatorSummary(
             sui_address=data["suiAddress"],
             protocol_pubkey_bytes=data["protocolPubkeyBytes"],
