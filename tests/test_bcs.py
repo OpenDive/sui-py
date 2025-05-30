@@ -13,7 +13,18 @@ import os
 # Add the parent directory to the path to import sui_py
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sui_py.bcs import *
+from sui_py.bcs import (
+    # Core functions
+    serialize, deserialize,
+    # Primitive types
+    U8, U16, U32, U64, U128, U256, Bool, Bytes, FixedBytes,
+    # Container types
+    BcsVector, BcsOption, bcs_vector, bcs_option, bcs_some, bcs_none,
+    # Factory functions
+    u8, u16, u32, u64, u128, u256, boolean, bytes_value, fixed_bytes,
+    # Exceptions
+    OverflowError, InsufficientDataError, InvalidDataError, DeserializationError
+)
 
 
 class TestPrimitiveTypes:
@@ -256,7 +267,7 @@ class TestErrorHandling:
         """Test invalid option tag."""
         invalid_option_data = b'\x02'  # Invalid option tag (must be 0 or 1)
         
-        with pytest.raises(InvalidDataError):
+        with pytest.raises(DeserializationError):
             deserialize(invalid_option_data, lambda d: BcsOption.deserialize(d, U8.deserialize))
 
 
