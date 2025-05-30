@@ -1,8 +1,7 @@
 # SuiPy Event Indexer - Generated Files
 # These files are auto-generated and should not be committed
 
-# Prisma generated client
-prisma/
+# Auto-setup marker file
 .prisma_ready
 
 # Database files
@@ -27,17 +26,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
 
 # Logs
 *.log

@@ -206,6 +206,5 @@ htmlcov/
 .env.test
 .env.production
 
-# Prisma generated files (for examples using Prisma)
-prisma/generated/
+# Prisma setup marker files (for examples using Prisma Client Python)
 .prisma_ready
