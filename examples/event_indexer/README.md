@@ -13,6 +13,7 @@ A real-time event indexer for the Sui blockchain built with the SuiPy SDK. This 
 - **Modular event handler architecture**
 - **Schema-first database design**
 - **Production-ready** error handling and logging
+- **✅ Fully tested** - Handles escrow and lock events correctly
 
 ## Quick Start
 
@@ -246,8 +247,9 @@ This Python implementation provides feature parity with the TypeScript reference
 | Database ORM | Prisma | Prisma Client Python |
 | Schema | ✅ Identical | ✅ Identical |
 | Event Processing | ✅ | ✅ |
-| Cursor Tracking | ✅ | ✅ |
+| Cursor Tracking | ✅ | ✅ Fixed |
 | Auto-setup | ❌ Manual | ✅ Automatic |
 | Type Safety | ✅ | ✅ |
+| Error Handling | ✅ | ✅ Enhanced |
 
 The Python version adds auto-setup for improved developer experience while maintaining full compatibility with the TypeScript implementation. 

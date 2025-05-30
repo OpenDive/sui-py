@@ -9,7 +9,9 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ## Current Status
 
-🚧 **In Development** - Currently implementing Extended API
+✅ **Extended API Complete** - All RPC methods implemented with full type safety
+
+🚧 **In Development** - Transaction Builder and Write APIs
 
 ### Async-First Design
 
@@ -43,6 +45,13 @@ async with SuiClient("mainnet") as client:
   - `resolve_name_service_address()` - Resolve name to address
   - `resolve_name_service_names()` - Get names for an address
   - Note: Subscription methods require WebSocket support (not implemented in REST client)
+
+- **Event Indexer Example**: Production-ready blockchain event processing
+  - Real-time event monitoring with typed `SuiEvent` objects
+  - Automatic cursor tracking and database persistence
+  - Modular handler architecture for different event types
+  - Auto-setup with Prisma Client Python integration
+  - Exponential backoff retry logic and error handling
 
 ### 🚧 Coming Soon
 - Read API (checkpoints, protocol config)
@@ -196,6 +205,31 @@ async with SuiClient("mainnet") as client:
 ```
 
 ## Examples
+
+### Real-World Event Indexer
+
+Check out our complete **Event Indexer** implementation in `examples/event_indexer/`:
+
+```python
+# Real-time blockchain event processing with cursor tracking
+from sui_py import SuiClient, EventFilter
+
+async with SuiClient("testnet") as client:
+    events = await client.extended_api.query_events(
+        query=EventFilter.by_module(package_id, "lock"),
+        limit=50
+    )
+    # Process events with typed handlers...
+```
+
+**Features:**
+- ✅ Real-time event processing with typed `SuiEvent` objects
+- ✅ Automatic cursor tracking and database persistence  
+- ✅ Production-ready error handling and retry logic
+- ✅ Auto-setup with Prisma Client Python
+- ✅ Feature parity with TypeScript reference implementation
+
+### Quick Examples
 
 See the `examples/` directory for complete usage examples:
 - `coin_query_example.py` - Comprehensive Coin Query API usage
