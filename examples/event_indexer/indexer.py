@@ -308,13 +308,15 @@ class EventIndexer:
             await self.db.cursor.upsert(
                 where={"id": tracker.type},
                 data={
-                    "txDigest": tx_digest,
-                    "eventSeq": event_seq
-                },
-                create={
-                    "id": tracker.type,
-                    "txDigest": tx_digest,
-                    "eventSeq": event_seq
+                    "create": {
+                        "id": tracker.type,
+                        "txDigest": tx_digest,
+                        "eventSeq": event_seq
+                    },
+                    "update": {
+                        "txDigest": tx_digest,
+                        "eventSeq": event_seq
+                    }
                 }
             )
             logger.debug(f"Saved cursor for {tracker.type}: {tx_digest}:{event_seq}")
