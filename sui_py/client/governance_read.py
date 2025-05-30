@@ -11,7 +11,7 @@ from .rest_client import RestClient
 from ..exceptions import SuiValidationError
 from ..types import (
     CommitteeInfo, DelegatedStake, ValidatorApys, SuiSystemStateSummary, 
-    SuiValidatorSummary, SuiAddress, ObjectID, Page
+    SuiValidatorSummary, StakeObject, SuiAddress, ObjectID, Page
 )
 
 
@@ -290,7 +290,7 @@ class GovernanceReadClient:
             exchange_rates_size=data["exchangeRatesSize"]
         )
 
-    def _parse_stake_object(self, data: Dict[str, Any]) -> 'StakeObject':
+    def _parse_stake_object(self, data: Dict[str, Any]) -> StakeObject:
         """
         Parse stake object data from JSON response.
         
@@ -300,8 +300,6 @@ class GovernanceReadClient:
         Returns:
             StakeObject
         """
-        from ..types.governance import StakeObject
-        
         return StakeObject(
             staked_sui_id=ObjectID(data["stakedSuiId"]),
             stake_request_epoch=data["stakeRequestEpoch"],
