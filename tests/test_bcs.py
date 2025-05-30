@@ -193,12 +193,12 @@ class TestPrimitiveTypes:
         
         # Test using low-level serializer for ULEB128
         serializer = Serializer()
-        serializer.serialize_uleb128(input_val)
+        serializer.write_uleb128(input_val)
         data = serializer.to_bytes()
         
         # Test deserialization
         deserializer = Deserializer(data)
-        output_val = deserializer.deserialize_uleb128()
+        output_val = deserializer.read_uleb128()
         
         assert input_val == output_val
     
