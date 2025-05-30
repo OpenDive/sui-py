@@ -393,13 +393,17 @@ The test suite covers:
   - ✅ Input validation and error handling
   - ✅ PTB validation and dependency checking
 
-- **BCS Implementation** (23 test cases):
-  - ✅ All primitive types (U8, U16, U32, U64, U128, U256, Bool, Bytes, FixedBytes)
-  - ✅ Container types (BcsVector, BcsOption) including nested containers
-  - ✅ Error handling (overflow, insufficient data, invalid formats)
-  - ✅ ULEB128 encoding for variable-length integers
-  - ✅ Factory functions and convenience APIs
-  - ✅ Round-trip serialization/deserialization
+- **BCS Implementation** (37 test cases - enhanced from C# Sui Unity SDK):
+  - ✅ **Comprehensive Primitive Types**: All integer types (U8, U16, U32, U64, U128, U256) with exact value testing
+  - ✅ **Boolean Operations**: Separate true/false serialization and invalid data error handling
+  - ✅ **String & Byte Handling**: UTF-8 string serialization, byte arrays, and fixed-length bytes
+  - ✅ **BigInteger Support**: Large number handling for U128/U256 with values from C# test cases
+  - ✅ **ULEB128 Encoding**: Direct low-level testing of variable-length integer encoding
+  - ✅ **Container Types**: BcsVector, BcsOption with nested containers and string sequences
+  - ✅ **Complex Serialization**: Multi-level nested structures simulating transaction patterns
+  - ✅ **Error Handling**: Overflow detection, insufficient data, invalid formats, malformed booleans
+  - ✅ **Round-trip Validation**: Complete serialization/deserialization cycle testing
+  - ✅ **Factory Functions**: Convenience APIs and type-safe constructors
 
 - **Cryptographic Primitives**:
   - ✅ Ed25519 key generation, signing, and verification
