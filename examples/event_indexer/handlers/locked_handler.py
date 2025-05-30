@@ -78,34 +78,43 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
         data = event.parsed_json
         logger.debug(f"📊 Event data: {data}")
         
-        # Determine locked_id from the event data
-        locked_id = data.get("locked_id")
-        if not locked_id:
-            logger.warning(f"Event {event.id} missing locked_id, skipping")
-            continue
+        # Debug: Log all available keys in the event data
+        logger.info(f"🔍 Available keys in event data: {list(data.keys())}")
+        logger.info(f"🎯 Event type: {event.type}")
         
-        logger.debug(f"🆔 Processing locked ID: {locked_id}")
+        # Determine lock_id from the event data (corrected field name)
+        lock_id = data.get("lock_id")
+        if not lock_id:
+            # Try alternative field names in case the structure is different
+            lock_id = data.get("locked_id") or data.get("id") or data.get("object_id")
+            if not lock_id:
+                logger.warning(f"Event {{'txDigest': '{event.id.tx_digest}', 'eventSeq': '{event.id.event_seq}'}} missing lock_id, skipping")
+                logger.warning(f"Available data: {data}")
+                continue
+        
+        logger.debug(f"🆔 Processing lock ID: {lock_id}")
         
         # Initialize update record if not exists
-        if locked_id not in updates:
-            updates[locked_id] = {
-                "objectId": locked_id,
-                "unlocked": False
+        if lock_id not in updates:
+            updates[lock_id] = {
+                "objectId": lock_id,
+                "deleted": False
             }
         
-        # Process different event types
-        if event.type.endswith("::LockedCreated") or "Created" in event.type:
-            logger.info(f"🔐 Processing LockedCreated for {locked_id}")
-            locked_created = LockedCreated(data)
-            updates[locked_id].update({
-                "sender": locked_created.sender,
-                "keyId": locked_created.key_id,
-                "itemId": locked_created.item_id
+        # Process different event types (corrected event type names)
+        if event.type.endswith("::LockCreated") or "Created" in event.type:
+            logger.info(f"🔐 Processing LockCreated for {lock_id}")
+            lock_created = LockCreated(data)
+            updates[lock_id].update({
+                "creator": lock_created.creator,  # Fixed: use creator not sender
+                "keyId": lock_created.key_id,
+                "itemId": lock_created.item_id
             })
             
-        elif event.type.endswith("::Unlocked"):
-            logger.info(f"🔓 Processing Unlocked for {locked_id}")
-            updates[locked_id]["unlocked"] = True
+        elif event.type.endswith("::LockDestroyed") or "Destroyed" in event.type:
+            logger.info(f"🔓 Processing LockDestroyed for {lock_id}")
+            lock_destroyed = LockDestroyed(data)
+            updates[lock_id]["deleted"] = True
         else:
             logger.warning(f"❓ Unknown lock event type: {event.type}")
     
@@ -116,21 +125,21 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
     logger.info(f"💾 Saving {len(updates)} lock updates to database...")
     
     # Perform database operations using Prisma upserts
-    for locked_data in updates.values():
+    for lock_data in updates.values():
         try:
-            logger.debug(f"💾 Upserting locked: {locked_data['objectId']}")
+            logger.debug(f"💾 Upserting lock: {lock_data['objectId']}")
             await db.locked.upsert(
-                where={"objectId": locked_data["objectId"]},
+                where={"objectId": lock_data["objectId"]},
                 data={
-                    "create": locked_data,
+                    "create": lock_data,
                     "update": {
-                        key: value for key, value in locked_data.items() 
+                        key: value for key, value in lock_data.items() 
                         if key != "objectId"
                     }
                 }
             )
         except Exception as e:
-            logger.error(f"Failed to upsert locked {locked_data['objectId']}: {e}")
+            logger.error(f"Failed to upsert lock {lock_data['objectId']}: {e}")
             raise
     
     logger.info(f"✅ Successfully processed {len(updates)} lock object updates") 

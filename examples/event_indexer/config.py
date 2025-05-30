@@ -41,7 +41,7 @@ def get_config() -> IndexerConfig:
     """Get the indexer configuration from environment variables or defaults."""
     
     # Network configuration
-    network = os.getenv("SUI_NETWORK", "mainnet")
+    network = os.getenv("SUI_NETWORK", "testnet")
     rpc_url = os.getenv("SUI_RPC_URL", NETWORK_ENDPOINTS.get(network, NETWORK_ENDPOINTS["mainnet"]))
     
     # Contract configuration
