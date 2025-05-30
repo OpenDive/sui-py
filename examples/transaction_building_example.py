@@ -124,7 +124,7 @@ def package_management_example():
     # New module bytecode for upgrade
     upgraded_modules = [b"upgraded_module_1", b"upgraded_module_2"]
     package_id = "0xpackage1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-    upgrade_cap_obj = upgrade_tx.object("0xcap1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd")
+    upgrade_cap_obj = upgrade_tx.object("0xabc1234567890abcdef1234567890abcdef1234567890abcdef12345678901234")
     
     # Create upgrade ticket
     ticket = upgrade_tx.move_call(
