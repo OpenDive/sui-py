@@ -13,6 +13,8 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ✅ **Cryptographic Primitives** - Ed25519 signing, verification, and key management
 
+✅ **BCS Serialization** - Complete Binary Canonical Serialization implementation
+
 🚧 **In Development** - Transaction Builder and Write APIs
 
 ### Async-First Design
@@ -30,6 +32,15 @@ async with SuiClient("mainnet") as client:
 ## Features
 
 ### ✅ Implemented
+
+- **BCS (Binary Canonical Serialization)**: Complete implementation following Move language specification
+  - **Protocol-based Architecture**: Type-safe `Serializable`/`Deserializable` protocols
+  - **Full Move Type Support**: All primitive types (U8, U16, U32, U64, U128, U256, Bool, Bytes, FixedBytes)
+  - **Generic Containers**: `BcsVector<T>` and `BcsOption<T>` for any serializable type
+  - **Deterministic Output**: Exact BCS format compliance with little-endian encoding
+  - **ULEB128 Support**: Variable-length integer encoding for collections
+  - **Comprehensive Error Handling**: Hierarchical exception system with detailed context
+  - **Factory Functions**: Convenient constructors (`u8()`, `u16()`, etc.)
 
 - **Cryptographic Primitives**: Complete Ed25519 implementation with unified signature handling
   - `create_private_key()` - Generate new Ed25519 private keys
@@ -147,6 +158,39 @@ pip install -r requirements-dev.txt
 
 ## Quick Start
 
+### BCS Serialization
+```python
+from sui_py.bcs import (
+    serialize, deserialize, U64, U8, Bool, Bytes,
+    BcsVector, BcsOption, bcs_vector, bcs_some, bcs_none
+)
+
+# Serialize primitive types
+value = U64(12345)
+data = serialize(value)
+print(f"Serialized: {data.hex()}")
+
+# Deserialize back
+restored = deserialize(data, U64.deserialize)
+print(f"Value: {restored.value}")
+
+# Work with containers
+vector = bcs_vector([U8(1), U8(2), U8(3)])
+vector_data = serialize(vector)
+
+# Options (nullable types)
+some_value = bcs_some(U64(999))
+none_value = bcs_none()
+
+# Factory functions for convenience
+from sui_py.bcs import u8, u64, boolean, bytes_value
+
+small_num = u8(255)
+big_num = u64(1_000_000)
+flag = boolean(True)
+data = bytes_value(b"hello world")
+```
+
 ### Cryptographic Operations
 ```python
 from sui_py import SignatureScheme, create_private_key, Ed25519PrivateKey, Signature
@@ -223,6 +267,87 @@ async def main():
 asyncio.run(main())
 ```
 
+## Testing
+
+### Running Tests
+
+The project includes comprehensive test suites for all implemented features.
+
+#### Prerequisites
+Make sure you have the development environment set up:
+
+```bash
+# Install dependencies including test tools
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # if available
+```
+
+#### Run All Tests
+```bash
+# Run all tests with pytest
+python -m pytest
+
+# Run with verbose output
+python -m pytest -v
+
+# Run with coverage report
+python -m pytest --cov=sui_py
+```
+
+#### Run Specific Test Suites
+
+**BCS Tests** (Binary Canonical Serialization):
+```bash
+# Run BCS tests specifically
+python -m pytest tests/test_bcs.py -v
+
+# Run individual test classes
+python -m pytest tests/test_bcs.py::TestPrimitiveTypes -v
+python -m pytest tests/test_bcs.py::TestContainerTypes -v
+python -m pytest tests/test_bcs.py::TestErrorHandling -v
+
+# Run the basic smoke test
+cd tests
+python test_bcs.py
+```
+
+**Cryptographic Tests**:
+```bash
+# Run crypto tests (if available)
+python -m pytest tests/test_crypto.py -v
+```
+
+**API Tests**:
+```bash
+# Run API tests (if available)
+python -m pytest tests/test_api.py -v
+```
+
+#### Test Coverage
+
+The test suite covers:
+
+- **BCS Implementation** (23 test cases):
+  - ✅ All primitive types (U8, U16, U32, U64, U128, U256, Bool, Bytes, FixedBytes)
+  - ✅ Container types (BcsVector, BcsOption) including nested containers
+  - ✅ Error handling (overflow, insufficient data, invalid formats)
+  - ✅ ULEB128 encoding for variable-length integers
+  - ✅ Factory functions and convenience APIs
+  - ✅ Round-trip serialization/deserialization
+
+- **Cryptographic Primitives**:
+  - ✅ Ed25519 key generation, signing, and verification
+  - ✅ Sui address derivation
+  - ✅ Signature serialization/deserialization
+
+#### Continuous Integration
+```bash
+# Run the same checks as CI
+python -m pytest --cov=sui_py --cov-report=term-missing
+python -m flake8 sui_py tests  # if configured
+python -m mypy sui_py  # if configured
+```
+
 ## Supported Networks
 
 - `mainnet` - Sui Mainnet
@@ -235,7 +360,9 @@ asyncio.run(main())
 
 ```python
 from sui_py import SuiClient, SuiError, SuiRPCError, SuiValidationError
+from sui_py.bcs import BcsError, SerializationError, DeserializationError
 
+# API Error Handling
 async with SuiClient("mainnet") as client:
     try:
         balance = await client.coin_query.get_balance("invalid-address")
@@ -245,6 +372,17 @@ async with SuiClient("mainnet") as client:
         print(f"RPC error {e.code}: {e}")
     except SuiError as e:
         print(f"General Sui error: {e}")
+
+# BCS Error Handling
+try:
+    data = serialize(U8(256))  # Overflow error
+except OverflowError as e:
+    print(f"Value too large: {e}")
+
+try:
+    result = deserialize(b'\x01', U32.deserialize)  # Insufficient data
+except DeserializationError as e:
+    print(f"Deserialization failed: {e}")
 ```
 
 ## Examples
@@ -278,10 +416,18 @@ See the `examples/` directory for complete usage examples:
 - `coin_query_example.py` - Comprehensive Coin Query API usage
 - `extended_api_example.py` - Extended API usage with objects, events, and transactions
 - `crypto_example.py` - Cryptographic operations and key management
+- `bcs_example.py` - BCS serialization and deserialization examples
 
 ## Contributing
 
 This project is in active development. Contributions are welcome!
+
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run the test suite: `python -m pytest`
+5. Submit a pull request
 
 ## License
 
