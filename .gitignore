@@ -205,3 +205,7 @@ htmlcov/
 .env.development
 .env.test
 .env.production
+
+# Prisma generated files (for examples using Prisma)
+prisma/generated/
+.prisma_ready
