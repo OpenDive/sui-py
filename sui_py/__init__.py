@@ -34,8 +34,10 @@ from .types import (
 from .crypto import (
     # Core abstractions
     SignatureScheme, AbstractPrivateKey, AbstractPublicKey, AbstractSignature,
+    # Unified signature
+    Signature,
     # Ed25519 implementations
-    Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature,
+    Ed25519PrivateKey, Ed25519PublicKey,
     # Factory functions
     create_private_key, import_private_key
 )
@@ -95,9 +97,9 @@ __all__ = [
     "AbstractPrivateKey",
     "AbstractPublicKey", 
     "AbstractSignature",
+    "Signature",
     "Ed25519PrivateKey",
     "Ed25519PublicKey",
-    "Ed25519Signature",
     "create_private_key",
     "import_private_key",
 ] 

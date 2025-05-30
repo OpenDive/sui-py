@@ -13,9 +13,10 @@ from ...exceptions import SuiValidationError
 from ...types.base import SuiAddress
 from ..base import AbstractPublicKey
 from ..schemes import SignatureScheme
+from ..signature import Signature
 
 if TYPE_CHECKING:
-    from .signature import Signature
+    pass
 
 
 @dataclass(frozen=True)
@@ -95,13 +96,13 @@ class PublicKey(AbstractPublicKey):
         except ValueError as e:
             raise SuiValidationError(f"Invalid hex string: {e}")
     
-    def verify(self, message: bytes, signature: "Signature") -> bool:
+    def verify(self, message: bytes, signature: Signature) -> bool:
         """
-        Verify an Ed25519 signature against a message.
+        Verify a signature against a message.
         
         Args:
             message: The original message bytes
-            signature: The Ed25519 signature to verify
+            signature: The signature to verify
             
         Returns:
             True if the signature is valid, False otherwise
@@ -112,10 +113,14 @@ class PublicKey(AbstractPublicKey):
         if not isinstance(message, bytes):
             raise SuiValidationError("Message must be bytes")
         
-        # Import here to avoid circular imports
-        from .signature import Signature
         if not isinstance(signature, Signature):
-            raise SuiValidationError("Signature must be an Ed25519 Signature")
+            raise SuiValidationError("Signature must be a Signature instance")
+        
+        # Verify that the signature scheme matches this key's scheme
+        if signature.scheme != self.scheme:
+            raise SuiValidationError(
+                f"Signature scheme {signature.scheme} does not match key scheme {self.scheme}"
+            )
         
         try:
             # NaCl verify method raises an exception if verification fails

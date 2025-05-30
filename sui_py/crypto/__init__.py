@@ -7,12 +7,12 @@ supported by the Sui blockchain, including Ed25519, Secp256k1, and Secp256r1.
 
 from .schemes import SignatureScheme
 from .base import AbstractPrivateKey, AbstractPublicKey, AbstractSignature
+from .signature import Signature
 
 # Ed25519 implementations
 from .ed25519 import (
     PrivateKey as Ed25519PrivateKey,
-    PublicKey as Ed25519PublicKey, 
-    Signature as Ed25519Signature
+    PublicKey as Ed25519PublicKey
 )
 
 __all__ = [
@@ -22,10 +22,12 @@ __all__ = [
     "AbstractPublicKey", 
     "AbstractSignature",
     
+    # Unified signature
+    "Signature",
+    
     # Ed25519 implementations
     "Ed25519PrivateKey",
     "Ed25519PublicKey",
-    "Ed25519Signature",
     
     # Factory functions
     "create_private_key",

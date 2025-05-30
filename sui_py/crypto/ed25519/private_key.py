@@ -12,10 +12,11 @@ import nacl.encoding
 from ...exceptions import SuiValidationError
 from ..base import AbstractPrivateKey
 from ..schemes import SignatureScheme
+from ..signature import Signature
 from .public_key import PublicKey
 
 if TYPE_CHECKING:
-    from .signature import Signature
+    pass
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,7 @@ class PrivateKey(AbstractPrivateKey):
         verify_key = self._key.verify_key
         return PublicKey(verify_key)
     
-    def sign(self, message: bytes) -> "Signature":
+    def sign(self, message: bytes) -> Signature:
         """
         Sign a message with this Ed25519 private key.
         
@@ -126,7 +127,7 @@ class PrivateKey(AbstractPrivateKey):
             message: The message bytes to sign
             
         Returns:
-            The Ed25519 signature
+            The signature
             
         Raises:
             SuiValidationError: If the message is invalid
@@ -134,14 +135,11 @@ class PrivateKey(AbstractPrivateKey):
         if not isinstance(message, bytes):
             raise SuiValidationError("Message must be bytes")
         
-        # Import here to avoid circular imports
-        from .signature import Signature
-        
         try:
             # NaCl produces a 64-byte signature
             signed_message = self._key.sign(message)
             signature_bytes = signed_message.signature
-            return Signature(signature_bytes)
+            return Signature(signature_bytes, SignatureScheme.ED25519)
         except Exception as e:
             raise SuiValidationError(f"Failed to sign message: {e}")
     
