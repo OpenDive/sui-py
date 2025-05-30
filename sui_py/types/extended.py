@@ -421,7 +421,7 @@ class EventFilter:
     @staticmethod
     def by_module(package_id: str, module_name: str) -> Dict[str, Any]:
         """Filter events by module."""
-        return {"MoveModule": {"package": package_id, "module": module_name}}
+        return {"MoveEventModule": {"package": package_id, "module": module_name}}
     
     @staticmethod
     def by_event_type(event_type: str) -> Dict[str, Any]:
