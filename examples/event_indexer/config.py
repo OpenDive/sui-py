@@ -47,7 +47,7 @@ def get_config() -> IndexerConfig:
     # Contract configuration
     swap_package_id = os.getenv(
         "SWAP_PACKAGE_ID", 
-        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"  # Example package ID
+        "0x052f4da5dddf486da555e6c6aea3818e8d8206931f74f7441be5417cf9eeb070"  # Example package ID
     )
     
     # Database configuration (Prisma reads DATABASE_URL automatically)
