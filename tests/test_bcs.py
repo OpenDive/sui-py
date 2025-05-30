@@ -4,6 +4,7 @@ Test suite for the BCS implementation.
 
 This module tests the Binary Canonical Serialization (BCS) framework,
 including primitive types, containers, and serialization/deserialization.
+Based on test cases from the C# Sui Unity SDK for comprehensive coverage.
 """
 
 import pytest
@@ -22,6 +23,8 @@ from sui_py.bcs import (
     BcsVector, BcsOption, bcs_vector, bcs_option, bcs_some, bcs_none,
     # Factory functions
     u8, u16, u32, u64, u128, u256, boolean, bytes_value, fixed_bytes,
+    # Low-level access
+    Serializer, Deserializer,
     # Exceptions
     OverflowError, InsufficientDataError, InvalidDataError, DeserializationError
 )
@@ -29,6 +32,175 @@ from sui_py.bcs import (
 
 class TestPrimitiveTypes:
     """Test cases for BCS primitive type serialization/deserialization."""
+    
+    def test_bool_true_ser_and_der(self):
+        """Test Bool True serialization and deserialization (C# equivalent: BoolTrueSerAndDerTest)."""
+        input_val = True
+        bool_obj = Bool(input_val)
+        data = serialize(bool_obj)
+        
+        # Should be exactly 1 byte with value 1
+        assert len(data) == 1
+        assert data == b'\x01'
+        
+        # Test deserialization
+        restored = deserialize(data, Bool.deserialize)
+        assert restored.value == input_val
+        assert restored.value is True
+    
+    def test_bool_false_ser_and_der(self):
+        """Test Bool False serialization and deserialization (C# equivalent: BoolFalseSerAndDerTest)."""
+        input_val = False
+        bool_obj = Bool(input_val)
+        data = serialize(bool_obj)
+        
+        # Should be exactly 1 byte with value 0
+        assert len(data) == 1
+        assert data == b'\x00'
+        
+        # Test deserialization
+        restored = deserialize(data, Bool.deserialize)
+        assert restored.value == input_val
+        assert restored.value is False
+    
+    def test_bool_error_ser_and_der(self):
+        """Test Bool error handling for invalid data (C# equivalent: BoolErrorSerAndDerTest)."""
+        # Serialize a U8 with invalid bool value (32)
+        invalid_byte = U8(32)
+        data = serialize(invalid_byte)
+        
+        # Should be 1 byte with value 32
+        assert len(data) == 1
+        assert data == b'\x20'  # 32 in hex
+        
+        # Trying to deserialize as Bool should raise InvalidDataError
+        with pytest.raises(InvalidDataError):
+            deserialize(data, Bool.deserialize)
+    
+    def test_byte_array_ser_and_der(self):
+        """Test byte array serialization and deserialization (C# equivalent: ByteArraySerAndDerTest)."""
+        input_data = "1234567890".encode('utf-8')
+        bytes_obj = Bytes(input_data)
+        data = serialize(bytes_obj)
+        
+        # Should include length prefix + actual data
+        assert len(data) > len(input_data)
+        
+        # Test deserialization
+        restored = deserialize(data, Bytes.deserialize)
+        assert restored.value == input_data
+        
+        # Test that the data matches exactly
+        assert input_data == restored.value
+    
+    def test_string_ser_and_der(self):
+        """Test string serialization and deserialization (C# equivalent: StringSerAndDerTest)."""
+        input_str = "1234567890"
+        input_bytes = input_str.encode('utf-8')
+        bytes_obj = Bytes(input_bytes)
+        data = serialize(bytes_obj)
+        
+        # Test deserialization
+        restored = deserialize(data, Bytes.deserialize)
+        output_str = restored.value.decode('utf-8')
+        
+        assert output_str == input_str
+    
+    def test_byte_ser_and_der(self):
+        """Test U8/byte serialization and deserialization (C# equivalent: ByteSerAndDerTest)."""
+        input_val = 15
+        u8_obj = U8(input_val)
+        data = serialize(u8_obj)
+        
+        # U8 should be exactly 1 byte
+        assert len(data) == 1
+        assert data == b'\x0f'  # 15 in hex
+        
+        # Test deserialization
+        restored = deserialize(data, U8.deserialize)
+        assert restored.value == input_val
+    
+    def test_ushort_ser_and_der(self):
+        """Test U16/ushort serialization and deserialization (C# equivalent: UShortSerAndDerTest)."""
+        input_val = 11115  # From C# test: 111_15
+        u16_obj = U16(input_val)
+        data = serialize(u16_obj)
+        
+        # U16 should be exactly 2 bytes (little-endian)
+        assert len(data) == 2
+        
+        # Test deserialization
+        restored = deserialize(data, U16.deserialize)
+        assert restored.value == input_val
+    
+    def test_uint_ser_and_der(self):
+        """Test U32/uint serialization and deserialization (C# equivalent: UIntSerAndDerTest)."""
+        input_val = 1111111115  # From C# test: 1_111_111_115
+        u32_obj = U32(input_val)
+        data = serialize(u32_obj)
+        
+        # U32 should be exactly 4 bytes (little-endian)
+        assert len(data) == 4
+        
+        # Test deserialization
+        restored = deserialize(data, U32.deserialize)
+        assert restored.value == input_val
+    
+    def test_ulong_ser_and_der(self):
+        """Test U64/ulong serialization and deserialization (C# equivalent: ULongSerAndDerTest)."""
+        input_val = 1111111111111111115  # From C# test: 1_111_111_111_111_111_115
+        u64_obj = U64(input_val)
+        data = serialize(u64_obj)
+        
+        # U64 should be exactly 8 bytes (little-endian)
+        assert len(data) == 8
+        
+        # Test deserialization
+        restored = deserialize(data, U64.deserialize)
+        assert restored.value == input_val
+    
+    def test_uint128_big_integer_ser_and_der(self):
+        """Test U128 with BigInteger serialization and deserialization (C# equivalent: UInt128BigIntegerSerAndDerTest)."""
+        # From C# test: "1111111111111111111111111111111111115"
+        input_val = int("1111111111111111111111111111111111115")
+        u128_obj = U128(input_val)
+        data = serialize(u128_obj)
+        
+        # U128 should be exactly 16 bytes
+        assert len(data) == 16
+        
+        # Test deserialization
+        restored = deserialize(data, U128.deserialize)
+        assert restored.value == input_val
+    
+    def test_uint256_big_integer_ser_and_der(self):
+        """Test U256 with BigInteger serialization and deserialization (C# equivalent: UInt256BigIntegerSerAndDerTest)."""
+        # From C# test: "111111111111111111111111111111111111111111111111111111111111111111111111111115"
+        input_val = int("111111111111111111111111111111111111111111111111111111111111111111111111111115")
+        u256_obj = U256(input_val)
+        data = serialize(u256_obj)
+        
+        # U256 should be exactly 32 bytes
+        assert len(data) == 32
+        
+        # Test deserialization
+        restored = deserialize(data, U256.deserialize)
+        assert restored.value == input_val
+    
+    def test_uleb128_ser_and_der(self):
+        """Test ULEB128 encoding/decoding directly (C# equivalent: ULeb128SerAndDerTest)."""
+        input_val = 1111111115  # From C# test: 1_111_111_115
+        
+        # Test using low-level serializer for ULEB128
+        serializer = Serializer()
+        serializer.serialize_uleb128(input_val)
+        data = serializer.to_bytes()
+        
+        # Test deserialization
+        deserializer = Deserializer(data)
+        output_val = deserializer.deserialize_uleb128()
+        
+        assert input_val == output_val
     
     def test_u8_serialization(self):
         """Test U8 serialization and deserialization."""
@@ -158,6 +330,25 @@ class TestPrimitiveTypes:
 
 class TestContainerTypes:
     """Test cases for BCS container type serialization/deserialization."""
+    
+    def test_sequence_ser_and_der(self):
+        """Test Sequence/Vector serialization and deserialization (C# equivalent: SequenceSerAndDerTest)."""
+        # Test vector of strings (equivalent to C# Sequence of BString)
+        input_strings = ["a", "abc", "def", "ghi"]
+        string_bytes = [Bytes(s.encode('utf-8')) for s in input_strings]
+        vector = bcs_vector(string_bytes)
+        data = serialize(vector)
+        
+        # Test deserialization
+        restored = deserialize(data, lambda d: BcsVector.deserialize(d, Bytes.deserialize))
+        
+        # Verify the restored vector matches
+        assert len(restored) == len(input_strings)
+        restored_strings = [elem.value.decode('utf-8') for elem in restored.elements]
+        assert restored_strings == input_strings
+        
+        # Test equality (like C# Equals method)
+        assert all(original == restored for original, restored in zip(input_strings, restored_strings))
     
     def test_vector_serialization(self):
         """Test BcsVector serialization and deserialization."""
