@@ -54,9 +54,7 @@ from .transactions import (
     PureArgument, ObjectArgument, ResultArgument, GasCoinArgument,
     # Commands
     MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
-    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand,
-    # Utilities
-    BcsString
+    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand
 )
 
 __all__ = [
@@ -137,5 +135,4 @@ __all__ = [
     "PublishCommand",
     "UpgradeCommand", 
     "MakeMoveVecCommand",
-    "BcsString",
 ] 
