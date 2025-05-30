@@ -252,7 +252,7 @@ ptb = tx.build()
 print(f"Transaction summary: {ptb}")
 
 # Get bytes for signing
-tx_bytes = tx.to_bcs_bytes()
+tx_bytes = tx.to_bytes()
 
 # Complex DeFi operations with result chaining
 defi_tx = TransactionBuilder()
@@ -275,7 +275,7 @@ defi_tx.transfer_objects([lp_tokens], recipient)
 
 # Serialize the complex transaction
 complex_ptb = defi_tx.build()
-complex_bytes = defi_tx.to_bcs_bytes()
+complex_bytes = defi_tx.to_bytes()
 ```
 
 ### Coin Query API

@@ -45,7 +45,7 @@ def basic_transaction_example():
     print(f"PTB Summary:\n{ptb}")
     
     # Serialize to BCS bytes
-    bcs_bytes = tx.to_bcs_bytes()
+    bcs_bytes = tx.to_bytes()
     print(f"BCS bytes length: {len(bcs_bytes)}")
     print()
 
@@ -282,7 +282,7 @@ async def integration_example():
     tx.transfer_objects([new_coins[0]], recipient)
     
     # Get transaction bytes for signing
-    ptb_bytes = tx.to_bcs_bytes()
+    ptb_bytes = tx.to_bytes()
     
     print(f"Transaction ready for signing:")
     print(f"  PTB byte length: {len(ptb_bytes)}")

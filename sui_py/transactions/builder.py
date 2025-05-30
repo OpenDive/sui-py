@@ -9,7 +9,7 @@ management, input deduplication, and result chaining.
 from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
-from ..bcs import serialize
+from ..bcs import serialize, Serializer, Serializable
 from .arguments import (
     AnyArgument, PureArgument, ObjectArgument, ResultArgument, 
     GasCoinArgument, pure, object_arg, gas_coin
@@ -51,7 +51,7 @@ class ResultHandle:
         return ResultArgument(self.command_index, 0)
 
 
-class TransactionBuilder:
+class TransactionBuilder(Serializable):
     """
     Fluent builder for constructing Programmable Transaction Blocks.
     
@@ -354,7 +354,17 @@ class TransactionBuilder:
         
         return ptb
     
-    def to_bcs_bytes(self) -> bytes:
+    def serialize(self, serializer: Serializer) -> None:
+        """
+        Serialize the transaction builder by building and serializing the PTB.
+        
+        Args:
+            serializer: The BCS serializer to write data to
+        """
+        ptb = self.build()
+        ptb.serialize(serializer)
+    
+    def to_bytes(self) -> bytes:
         """
         Serialize the PTB to BCS bytes.
         
