@@ -47,6 +47,26 @@ def prisma_cli_available() -> bool:
         return False
 
 
+def database_tables_exist() -> bool:
+    """Check if the database tables have been created."""
+    try:
+        # Try to connect to the database and check for tables
+        # We'll use a simple approach - check if the database file exists for SQLite
+        from .config import CONFIG
+        
+        if CONFIG.database_url.startswith("file:"):
+            # SQLite database
+            db_path = CONFIG.database_url.replace("file:", "")
+            db_file = INDEXER_DIR / db_path.lstrip("./")
+            return db_file.exists()
+        else:
+            # For other databases, assume tables exist if client is generated
+            # This is a simplification - in production you'd want to check the actual tables
+            return prisma_client_exists()
+    except Exception:
+        return False
+
+
 def schema_changed() -> bool:
     """Check if the schema has changed since last generation."""
     if not SETUP_MARKER.exists():
@@ -65,7 +85,7 @@ def schema_changed() -> bool:
 
 def generate_prisma_client() -> bool:
     """
-    Generate the Prisma client.
+    Generate the Prisma client and create database tables.
     
     Returns:
         True if generation was successful, False otherwise
@@ -91,6 +111,15 @@ def generate_prisma_client() -> bool:
         # Change to the indexer directory where schema.prisma is located
         os.chdir(INDEXER_DIR)
         
+        # Ensure DATABASE_URL is set in environment
+        env = os.environ.copy()
+        try:
+            from .config import CONFIG
+            env["DATABASE_URL"] = CONFIG.database_url
+        except ImportError:
+            # Fallback to default if config import fails
+            env["DATABASE_URL"] = "file:./indexer.db"
+        
         print("📦 Generating Prisma client... (this may take a moment)")
         
         # Run prisma generate
@@ -98,15 +127,11 @@ def generate_prisma_client() -> bool:
             ["prisma", "generate"],
             capture_output=True,
             text=True,
-            timeout=120  # 2 minutes timeout
+            timeout=120,  # 2 minutes timeout
+            env=env
         )
         
-        if result.returncode == 0:
-            # Create success marker
-            SETUP_MARKER.touch()
-            print("✅ Database client ready!")
-            return True
-        else:
+        if result.returncode != 0:
             print("❌ Failed to generate Prisma client.")
             print(f"   Error: {result.stderr.strip()}")
             print()
@@ -115,23 +140,53 @@ def generate_prisma_client() -> bool:
             print("   prisma generate")
             print()
             return False
+        
+        print("✅ Prisma client generated!")
+        
+        # Now create the database tables
+        print("🗄️  Creating database tables...")
+        
+        db_result = subprocess.run(
+            ["prisma", "db", "push"],
+            capture_output=True,
+            text=True,
+            timeout=60,  # 1 minute timeout
+            env=env
+        )
+        
+        if db_result.returncode == 0:
+            # Create success marker
+            SETUP_MARKER.touch()
+            print("✅ Database ready!")
+            return True
+        else:
+            print("❌ Failed to create database tables.")
+            print(f"   Error: {db_result.stderr.strip()}")
+            print()
+            print("💡 Try running manually:")
+            print(f"   cd {INDEXER_DIR}")
+            print("   prisma db push")
+            print()
+            return False
             
     except subprocess.TimeoutExpired:
-        print("❌ Prisma generation timed out.")
+        print("❌ Database setup timed out.")
         print("   This might be due to network issues downloading the Prisma engine.")
         print()
         print("💡 Try running manually:")
         print(f"   cd {INDEXER_DIR}")
         print("   prisma generate")
+        print("   prisma db push")
         print()
         return False
         
     except Exception as e:
-        print(f"❌ Unexpected error during Prisma generation: {e}")
+        print(f"❌ Unexpected error during database setup: {e}")
         print()
         print("💡 Try running manually:")
         print(f"   cd {INDEXER_DIR}")
         print("   prisma generate")
+        print("   prisma db push")
         print()
         return False
         
@@ -142,24 +197,29 @@ def generate_prisma_client() -> bool:
 
 def ensure_prisma_client() -> bool:
     """
-    Ensure the Prisma client is available and up-to-date.
+    Ensure the Prisma client is available and database is set up.
     
     This function:
     1. Checks if the client already exists
-    2. Checks if the schema has changed
-    3. Auto-generates the client if needed
-    4. Provides helpful error messages if generation fails
+    2. Checks if the database tables exist
+    3. Checks if the schema has changed
+    4. Auto-generates the client and creates tables if needed
+    5. Provides helpful error messages if setup fails
     
     Returns:
-        True if the client is ready, False if setup failed
+        True if the client and database are ready, False if setup failed
     """
-    # Skip if client exists and schema hasn't changed
-    if prisma_client_exists() and not schema_changed():
+    # Skip if client exists, database exists, and schema hasn't changed
+    if (prisma_client_exists() and 
+        database_tables_exist() and 
+        not schema_changed()):
         return True
     
     # Need to generate or regenerate
-    if prisma_client_exists():
-        print("🔄 Schema changed, updating database client...")
+    if prisma_client_exists() and database_tables_exist():
+        print("🔄 Schema changed, updating database...")
+    elif prisma_client_exists():
+        print("🔄 Database tables missing, creating...")
     
     return generate_prisma_client()
 
@@ -175,7 +235,7 @@ def show_manual_setup_instructions():
     print("2. Generate the Prisma client:")
     print("   prisma generate")
     print()
-    print("3. (Optional) Set up the database:")
+    print("3. Create the database tables:")
     print("   prisma db push")
     print()
     print("4. Run the indexer:")
@@ -185,6 +245,7 @@ def show_manual_setup_instructions():
     print("- Prisma Client Python is properly installed")
     print("- You have internet access (Prisma downloads binaries)")
     print("- You have write permissions in the current directory")
+    print("- The schema.prisma file exists and is valid")
     print()
 
 

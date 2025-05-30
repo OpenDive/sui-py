@@ -6,13 +6,27 @@ processing escrow creation, swapping, and cancellation events using typed SuiEve
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Dict, List
 
 from prisma import Prisma
 from prisma.models import Escrow
 
 from sui_py import SuiEvent
-from ..config import CONFIG
+
+# Handle both direct script execution and module import
+try:
+    from config import CONFIG
+except ImportError:
+    # Add parent directory to path for direct execution
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    try:
+        from config import CONFIG
+    except ImportError:
+        from ..config import CONFIG
 
 logger = logging.getLogger(__name__)
 

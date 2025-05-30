@@ -7,30 +7,41 @@ for events and processing them using typed SuiEvent objects and handlers.
 
 import asyncio
 import logging
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-# Auto-setup integration
-from .setup import setup_with_fallback, ensure_prisma_client
+# Add the current directory to Python path for relative imports
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
 
-# Import Prisma after ensuring it's set up
+# Auto-setup integration - run BEFORE importing Prisma
 try:
-    from prisma import Prisma
-    from prisma.models import Cursor
-except ImportError as e:
-    print("❌ Prisma client not available. Running auto-setup...")
-    if not setup_with_fallback():
-        print("❌ Failed to set up Prisma client. Please run setup manually.")
-        exit(1)
-    # Try importing again after setup
-    from prisma import Prisma
-    from prisma.models import Cursor
+    from setup import setup_with_fallback, ensure_prisma_client
+except ImportError:
+    from .setup import setup_with_fallback, ensure_prisma_client
+
+# Ensure Prisma client is ready before importing
+print("Checking database client setup...")
+if not ensure_prisma_client():
+    print("❌ Failed to set up database client. Please run 'python setup.py' manually.")
+    sys.exit(1)
+
+# Now safe to import Prisma
+from prisma import Prisma
+from prisma.models import Cursor
 
 from sui_py import SuiClient, SuiEvent, EventFilter, Page
 from sui_py.exceptions import SuiRPCError, SuiValidationError
 
-from .config import CONFIG
-from .handlers import handle_escrow_objects, handle_lock_objects
+try:
+    from config import CONFIG
+    from handlers import handle_escrow_objects, handle_lock_objects
+except ImportError:
+    from .config import CONFIG
+    from .handlers import handle_escrow_objects, handle_lock_objects
 
 logger = logging.getLogger(__name__)
 
