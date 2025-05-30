@@ -122,10 +122,12 @@ async def handle_lock_objects(events: List[SuiEvent], event_type: str, db: Prism
             await db.locked.upsert(
                 where={"objectId": locked_data["objectId"]},
                 data={
-                    key: value for key, value in locked_data.items() 
-                    if key != "objectId"
-                },
-                create=locked_data
+                    "create": locked_data,
+                    "update": {
+                        key: value for key, value in locked_data.items() 
+                        if key != "objectId"
+                    }
+                }
             )
         except Exception as e:
             logger.error(f"Failed to upsert locked {locked_data['objectId']}: {e}")

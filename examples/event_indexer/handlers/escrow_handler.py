@@ -138,10 +138,12 @@ async def handle_escrow_objects(events: List[SuiEvent], event_type: str, db: Pri
             await db.escrow.upsert(
                 where={"objectId": escrow_data["objectId"]},
                 data={
-                    key: value for key, value in escrow_data.items() 
-                    if key != "objectId"
-                },
-                create=escrow_data
+                    "create": escrow_data,
+                    "update": {
+                        key: value for key, value in escrow_data.items() 
+                        if key != "objectId"
+                    }
+                }
             )
         except Exception as e:
             logger.error(f"Failed to upsert escrow {escrow_data['objectId']}: {e}")
