@@ -29,6 +29,7 @@ class PublicKey(AbstractPublicKey):
     signature verification and Sui address derivation using compressed format.
     """
     _key: VerifyingKey
+    _compressed_bytes: bytes  # Store the full 33-byte compressed format
     
     def __post_init__(self):
         """Validate the public key on creation."""
@@ -37,6 +38,24 @@ class PublicKey(AbstractPublicKey):
         
         if self._key.curve != SECP256k1:
             raise SuiValidationError("Public key must use secp256k1 curve")
+        
+        if not isinstance(self._compressed_bytes, bytes):
+            raise SuiValidationError("Compressed bytes must be bytes")
+        
+        if len(self._compressed_bytes) != 33:
+            raise SuiValidationError("Compressed bytes must be 33 bytes")
+    
+    def __new__(cls, key: VerifyingKey, compressed_bytes: bytes = None):
+        """Create a new PublicKey instance with proper compressed bytes."""
+        if compressed_bytes is None:
+            # Derive compressed bytes from the verifying key
+            compressed_bytes = key.to_string("compressed")
+        
+        # Use object.__new__ to avoid infinite recursion
+        instance = object.__new__(cls)
+        object.__setattr__(instance, '_key', key)
+        object.__setattr__(instance, '_compressed_bytes', compressed_bytes)
+        return instance
     
     @classmethod
     def from_bytes(cls, key_bytes: bytes) -> "PublicKey":
@@ -57,23 +76,33 @@ class PublicKey(AbstractPublicKey):
         
         # Handle both compressed (33 bytes) and x-coordinate only (32 bytes) formats
         if len(key_bytes) == 32:
-            # For Sui compatibility, treat 32 bytes as x-coordinate with even y
-            key_bytes = b'\x02' + key_bytes  # Assume even y-coordinate
+            # For 32-byte input, we need to try both y-coordinate parities
+            # First try even y-coordinate (0x02)
+            try:
+                compressed_bytes = b'\x02' + key_bytes
+                verifying_key = VerifyingKey.from_string(compressed_bytes, curve=SECP256k1)
+                return cls(verifying_key, compressed_bytes)
+            except:
+                # If that fails, try odd y-coordinate (0x03)
+                try:
+                    compressed_bytes = b'\x03' + key_bytes
+                    verifying_key = VerifyingKey.from_string(compressed_bytes, curve=SECP256k1)
+                    return cls(verifying_key, compressed_bytes)
+                except Exception as e:
+                    raise SuiValidationError(f"Invalid secp256k1 public key x-coordinate: {e}")
         elif len(key_bytes) == 33:
             # Standard compressed format
             if key_bytes[0] not in (0x02, 0x03):
                 raise SuiValidationError("Invalid compressed public key prefix")
+            try:
+                verifying_key = VerifyingKey.from_string(key_bytes, curve=SECP256k1)
+                return cls(verifying_key, key_bytes)
+            except Exception as e:
+                raise SuiValidationError(f"Invalid secp256k1 public key bytes: {e}")
         else:
             raise SuiValidationError(
                 f"Secp256k1 public key must be 32 or 33 bytes, got {len(key_bytes)}"
             )
-        
-        try:
-            # Use compressed format for the ecdsa library
-            verifying_key = VerifyingKey.from_string(key_bytes, curve=SECP256k1)
-            return cls(verifying_key)
-        except Exception as e:
-            raise SuiValidationError(f"Invalid secp256k1 public key bytes: {e}")
     
     @classmethod
     def from_hex(cls, hex_string: str) -> "PublicKey":
@@ -186,20 +215,35 @@ class PublicKey(AbstractPublicKey):
         Returns:
             The 32-byte x-coordinate of the public key
         """
-        # Get the compressed public key (33 bytes: prefix + x-coordinate)
-        compressed_key = self._key.to_string("compressed")
-        
         # Return just the x-coordinate (32 bytes) for Sui compatibility
-        return compressed_key[1:]  # Remove the 0x02/0x03 prefix
+        return self._compressed_bytes[1:]  # Remove the 0x02/0x03 prefix
+    
+    def to_compressed_bytes(self) -> bytes:
+        """
+        Export the full compressed public key (33 bytes).
+        
+        Returns:
+            The 33-byte compressed public key
+        """
+        return self._compressed_bytes
     
     def to_hex(self) -> str:
         """
-        Export the public key as a hex string.
+        Export the public key as a hex string (32-byte x-coordinate).
         
         Returns:
             The public key as hex string with 0x prefix
         """
         return "0x" + self.to_bytes().hex()
+    
+    def to_compressed_hex(self) -> str:
+        """
+        Export the full compressed public key as a hex string (33 bytes).
+        
+        Returns:
+            The compressed public key as hex string with 0x prefix
+        """
+        return "0x" + self._compressed_bytes.hex()
     
     @property
     def scheme(self) -> SignatureScheme:

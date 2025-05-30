@@ -134,7 +134,8 @@ class PrivateKey(AbstractPrivateKey):
             The secp256k1 public key derived from this private key
         """
         verifying_key = self._key.get_verifying_key()
-        return PublicKey(verifying_key)
+        compressed_bytes = verifying_key.to_string("compressed")
+        return PublicKey(verifying_key, compressed_bytes)
     
     def sign(self, message: bytes) -> Signature:
         """
