@@ -22,6 +22,12 @@ from .extended import (
     # Query filters
     EventFilter, TransactionFilter
 )
+from .governance import (
+    CommitteeInfo, DelegatedStake, StakeObject, ValidatorApy, ValidatorApys,
+    SuiValidatorSummary, SuiSystemStateSummary,
+    # Type aliases
+    Stake, ValidatorSummary, SystemState
+)
 
 __all__ = [
     # Base types
@@ -64,4 +70,18 @@ __all__ = [
     # Query filters
     "EventFilter",
     "TransactionFilter",
+    
+    # Governance types
+    "CommitteeInfo",
+    "DelegatedStake",
+    "StakeObject",
+    "ValidatorApy",
+    "ValidatorApys",
+    "SuiValidatorSummary",
+    "SuiSystemStateSummary",
+    
+    # Governance type aliases
+    "Stake",
+    "ValidatorSummary",
+    "SystemState",
 ] 
