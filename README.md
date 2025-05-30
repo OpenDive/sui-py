@@ -4,12 +4,14 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 ## Design Philosophy
 
 - **Async-First**: Built for high-performance concurrent operations
-- **Type-Safe**: Full type hints and structured data models (coming soon)
+- **Type-Safe**: Full type hints and structured data models
 - **Lightweight**: Minimal dependencies, maximum performance
 
 ## Current Status
 
 ✅ **Extended API Complete** - All RPC methods implemented with full type safety
+
+✅ **Cryptographic Primitives** - Ed25519 signing, verification, and key management
 
 🚧 **In Development** - Transaction Builder and Write APIs
 
@@ -28,6 +30,16 @@ async with SuiClient("mainnet") as client:
 ## Features
 
 ### ✅ Implemented
+
+- **Cryptographic Primitives**: Complete Ed25519 implementation with unified signature handling
+  - `create_private_key()` - Generate new Ed25519 private keys
+  - `import_private_key()` - Import keys from bytes or hex
+  - **Ed25519PrivateKey**: Key generation, signing, serialization
+  - **Ed25519PublicKey**: Signature verification, Sui address derivation
+  - **Signature**: Unified signature class for all cryptographic schemes
+  - **SignatureScheme**: Support for Ed25519 (Secp256k1 and Secp256r1 coming soon)
+  - Sui address derivation with proper BLAKE2b hashing and scheme flags
+
 - **Coin Query API**: Complete implementation of all coin-related RPC methods
   - `get_all_balances()` - Get all coin balances for an address
   - `get_all_coins()` - Get all coin objects (with pagination)
@@ -54,12 +66,14 @@ async with SuiClient("mainnet") as client:
   - Exponential backoff retry logic and error handling
 
 ### 🚧 Coming Soon
+- Secp256k1 and Secp256r1 cryptographic schemes
+- Account abstraction with multi-scheme support
+- Mnemonic phrase support for key derivation
 - Read API (checkpoints, protocol config)
 - Transaction Builder API
 - Write API (transaction execution)
 - Governance Read API
 - Move Utils API
-- Typed data models (Address, ObjectID, etc.)
 - WebSocket client for subscriptions
 
 ## Installation
@@ -132,6 +146,35 @@ pip install -r requirements-dev.txt
 ```
 
 ## Quick Start
+
+### Cryptographic Operations
+```python
+from sui_py import SignatureScheme, create_private_key, Ed25519PrivateKey, Signature
+
+# Generate a new Ed25519 key pair
+private_key = create_private_key(SignatureScheme.ED25519)
+public_key = private_key.public_key()
+
+# Get the Sui address
+address = public_key.to_sui_address()
+print(f"Address: {address}")
+
+# Sign a message
+message = b"Hello, Sui blockchain!"
+signature = private_key.sign(message)
+
+# Verify the signature
+is_valid = public_key.verify(message, signature)
+print(f"Signature valid: {is_valid}")
+
+# Export/import keys
+private_key_hex = private_key.to_hex()
+imported_key = Ed25519PrivateKey.from_hex(private_key_hex)
+
+# Serialize signatures
+signature_hex = signature.to_hex()
+reconstructed_sig = Signature.from_hex(signature_hex, SignatureScheme.ED25519)
+```
 
 ### Coin Query API
 ```python
@@ -234,6 +277,7 @@ async with SuiClient("testnet") as client:
 See the `examples/` directory for complete usage examples:
 - `coin_query_example.py` - Comprehensive Coin Query API usage
 - `extended_api_example.py` - Extended API usage with objects, events, and transactions
+- `crypto_example.py` - Cryptographic operations and key management
 
 ## Contributing
 
