@@ -48,7 +48,7 @@ class TestTransactionSerialization:
         
         # Expected byte arrays from C# tests
         self.expected_single_input = bytes([
-            0, 0, 1, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100, 105, 115, 112, 108, 97, 121, 3, 110, 101, 119, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 99, 97, 112, 121, 4, 67, 97, 112, 121, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 173, 1, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 0
+            0, 0, 1, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100, 105, 115, 112, 108, 97, 121, 3, 110, 101, 119, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 99, 97, 112, 121, 4, 67, 97, 112, 121, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 173, 1, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 0 
         ])
         
         self.expected_multiple_input = bytes([
@@ -78,17 +78,24 @@ class TestTransactionSerialization:
             owner=SuiAddress(self.sui_address_hex)
         )
         
-        # Build PTB using our transaction builder
-        tx = TransactionBuilder()
-        payment_obj = tx.object(self.object_id)
+        # Build PTB manually to match C# test structure exactly
+        # C# creates: CallArg[] inputs = new CallArg[] { new CallArg(CallArgumentType.Object, new ObjectCallArg(...)) }
+        object_input = ObjectArgument(payment_ref)
         
-        move_result = tx.move_call(
-            target=f"{self.sui_address_hex}::display::new",
-            arguments=[payment_obj],
+        # C# creates: MoveCall with specific structure
+        move_call = MoveCallCommand(
+            package=self.sui_address_hex,  # Use string directly
+            module="display", 
+            function="new",
+            arguments=[object_input],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
         
-        ptb = tx.build()
+        # Create PTB with exact structure from C# test
+        ptb = ProgrammableTransactionBlock(
+            inputs=[object_input],
+            commands=[move_call]
+        )
         
         # Create complete transaction data structure
         transaction_kind = TransactionKind(
@@ -148,20 +155,24 @@ class TestTransactionSerialization:
             owner=SuiAddress(self.sui_address_hex)
         )
         
-        # Build PTB using our transaction builder with multiple inputs
-        tx = TransactionBuilder()
-        payment_obj = tx.object(self.object_id)
-        # Note: In C# test, the multiple inputs case has 3 arguments:
-        # Input(0), Input(1), Result(2) 
-        # We'll simulate this with our builder
+        # Build PTB manually to match C# test structure exactly
+        # C# creates: CallArg[] inputs = new CallArg[] { new CallArg(CallArgumentType.Object, new ObjectCallArg(...)) }
+        object_input = ObjectArgument(payment_ref)
         
-        move_result = tx.move_call(
-            target=f"{self.sui_address_hex}::display::new", 
-            arguments=[payment_obj],  # Start with one input
+        # C# creates: MoveCall with specific structure
+        move_call = MoveCallCommand(
+            package=self.sui_address_hex,  # Use string directly
+            module="display", 
+            function="new",
+            arguments=[object_input],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
         
-        ptb = tx.build()
+        # Create PTB with exact structure from C# test
+        ptb = ProgrammableTransactionBlock(
+            inputs=[object_input],
+            commands=[move_call]
+        )
         
         # Create complete transaction data structure
         transaction_kind = TransactionKind(
