@@ -444,77 +444,79 @@ class TestEd25519PublicKey:
         
         assert str(address1) != str(address2)
     
-    def test_official_sui_cli_test_vectors_validation(self):
-        """Test against official Sui CLI test vectors - validates our implementation consistency."""
-        # NOTE: Our address derivation produces different results than the official CLI
-        # This could be due to:
-        # 1. Different BLAKE2b implementation details
-        # 2. Different flag byte handling
-        # 3. Different normalization steps
-        # However, our implementation is internally consistent and follows Ed25519 standards
-        
+    def test_official_sui_cli_test_vectors_comprehensive(self):
+        """Test against official Sui CLI test vectors for full cross-platform compatibility."""
         for i, test_vector in enumerate(SUI_CLI_TEST_VECTORS):
-            # Test that we can parse the CLI-generated public keys correctly
+            # Create public key from raw base64
             public_key = Ed25519PublicKey.from_base64(test_vector["raw_public_key"])
             
-            # Validate key properties
+            # Test 1: Basic key properties
             assert len(public_key.to_bytes()) == 32
             assert public_key.scheme == SignatureScheme.ED25519
             
-            # Test serialization roundtrip
+            # Test 2: Raw key roundtrip
             assert public_key.to_base64() == test_vector["raw_public_key"]
             
-            # Test that our address derivation is consistent
-            address1 = public_key.to_sui_address()
-            address2 = public_key.to_sui_address()
-            assert str(address1) == str(address2)
+            # Test 3: to_sui_public_key() method (NEW!)
+            sui_public_key = public_key.to_sui_public_key()
+            assert sui_public_key == test_vector["sui_public_key"], (
+                f"Test vector {i}: Sui public key mismatch\n"
+                f"Expected: {test_vector['sui_public_key']}\n"
+                f"Got:      {sui_public_key}"
+            )
             
-            # Test that address format is correct
-            assert str(address1).startswith("0x")
-            assert len(str(address1)) == 66
+            # Test 4: Address derivation (SHOULD NOW MATCH!)
+            derived_address = public_key.to_sui_address()
+            expected_address = test_vector["sui_address"]
+            assert str(derived_address) == expected_address, (
+                f"Test vector {i}: Address mismatch\n"
+                f"Expected: {expected_address}\n"
+                f"Got:      {str(derived_address)}"
+            )
             
-            print(f"✅ Test vector {i}: Key parsing and consistency verified")
-            print(f"   Public key: {public_key.to_hex()}")
-            print(f"   Our address: {str(address1)}")
-            print(f"   CLI address: {test_vector['sui_address']}")
+            print(f"✅ Test vector {i}: All tests passed!")
+            print(f"   Raw public key: {test_vector['raw_public_key']}")
+            print(f"   Sui public key: {sui_public_key}")  
+            print(f"   Sui address:    {str(derived_address)}")
     
-    def test_cli_test_vectors_cross_implementation_note(self):
-        """Document the difference between our implementation and CLI for future reference."""
-        # This test serves as documentation for the address derivation difference
+    def test_to_sui_public_key_method(self):
+        """Test the to_sui_public_key method specifically."""
+        # Generate a test key
+        private_key = Ed25519PrivateKey.generate()
+        public_key = private_key.public_key()
         
-        test_vector = SUI_CLI_TEST_VECTORS[0]
-        public_key = Ed25519PublicKey.from_base64(test_vector["raw_public_key"])
-        our_address = public_key.to_sui_address()
-        cli_address = test_vector["sui_address"]
+        # Get components
+        raw_key_bytes = public_key.to_bytes()
+        sui_bytes = public_key.to_sui_bytes()
+        sui_public_key = public_key.to_sui_public_key()
         
-        # Document the difference
-        assert str(our_address) != cli_address
+        # Validate structure
+        assert len(raw_key_bytes) == 32
+        assert len(sui_bytes) == 33
+        assert sui_bytes[0] == 0x00  # Ed25519 flag byte
+        assert sui_bytes[1:] == raw_key_bytes
         
-        print(f"\n📝 Cross-implementation address derivation difference:")
-        print(f"   Raw public key: {test_vector['raw_public_key']}")
-        print(f"   Public key hex: {public_key.to_hex()}")
-        print(f"   Our Python impl: {str(our_address)}")
-        print(f"   Official CLI:    {cli_address}")
-        print(f"   Difference noted for future investigation")
+        # Validate base64 encoding
+        import base64
+        expected_sui_public_key = base64.b64encode(sui_bytes).decode('utf-8')
+        assert sui_public_key == expected_sui_public_key
         
-        # Both should be valid Sui addresses (correct format)
-        assert str(our_address).startswith("0x") and len(str(our_address)) == 66
-        assert cli_address.startswith("0x") and len(cli_address) == 66
-
-    def test_base64_roundtrip_with_known_vector(self):
-        """Test base64 serialization roundtrip with known test vector."""
-        # Use first test vector
-        test_vector = SUI_CLI_TEST_VECTORS[0]
+        # Test roundtrip via sui_bytes
+        reconstructed_sui_bytes = base64.b64decode(sui_public_key)
+        assert reconstructed_sui_bytes == sui_bytes
+    
+    def test_to_sui_bytes_method(self):
+        """Test the to_sui_bytes helper method."""
+        private_key = Ed25519PrivateKey.generate()
+        public_key = private_key.public_key()
         
-        # Create key from known base64
-        public_key = Ed25519PublicKey.from_base64(test_vector["raw_public_key"])
+        sui_bytes = public_key.to_sui_bytes()
+        raw_bytes = public_key.to_bytes()
         
-        # Test roundtrip
-        roundtrip_base64 = public_key.to_base64()
-        assert roundtrip_base64 == test_vector["raw_public_key"]
-        
-        # Test raw bytes length
-        assert len(public_key.to_bytes()) == 32
+        # Should be 33 bytes: flag + 32-byte key
+        assert len(sui_bytes) == 33
+        assert sui_bytes[0] == 0x00  # Ed25519 flag
+        assert sui_bytes[1:] == raw_bytes
     
     def test_serialization_hex(self):
         """Test public key hex serialization."""

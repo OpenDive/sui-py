@@ -154,29 +154,50 @@ class PublicKey(AbstractPublicKey):
             # Any exception means verification failed
             return False
     
+    def to_sui_bytes(self) -> bytes:
+        """
+        Return the Sui representation of the public key.
+        
+        A Sui public key is formed by the concatenation of the scheme flag 
+        with the raw bytes of the public key: [flag_byte, ...public_key_bytes]
+        
+        Returns:
+            The 33-byte Sui public key (flag + raw key)
+        """
+        public_key_bytes = self.to_bytes()
+        sui_bytes = bytes([self.scheme.flag_byte]) + public_key_bytes
+        return sui_bytes
+    
+    def to_sui_public_key(self) -> str:
+        """
+        Return the Sui representation of the public key encoded in base64.
+        
+        A Sui public key is formed by the concatenation of the scheme flag 
+        with the raw bytes of the public key, then base64 encoded.
+        
+        Returns:
+            The Sui public key as base64 string
+        """
+        return base64.b64encode(self.to_sui_bytes()).decode('utf-8')
+    
     def to_sui_address(self) -> SuiAddress:
         """
         Derive the Sui address from this Ed25519 public key.
         
         Sui address derivation for Ed25519:
-        1. Take the 32-byte public key
-        2. Append the Ed25519 flag byte (0x00)
-        3. Hash with BLAKE2b-256
-        4. Take the first 32 bytes
-        5. Prepend with "0x"
+        1. Create sui_bytes: [flag_byte, ...public_key_bytes] (33 bytes)
+        2. Hash with BLAKE2b-256 (32 bytes output)
+        3. Convert to hex with 0x prefix
         
         Returns:
             The Sui address
         """
         try:
-            # Get the 32-byte public key
-            public_key_bytes = self.to_bytes()
-            
-            # Append the Ed25519 flag byte (0x00)
-            key_with_flag = public_key_bytes + bytes([self.scheme.flag_byte])
+            # Get the Sui bytes (flag + public key, 33 bytes total)
+            sui_bytes = self.to_sui_bytes()
             
             # Hash with BLAKE2b-256 (32 bytes output)
-            address_bytes = hashlib.blake2b(key_with_flag, digest_size=32).digest()
+            address_bytes = hashlib.blake2b(sui_bytes, digest_size=32).digest()
             
             # Convert to hex with 0x prefix
             address_hex = "0x" + address_bytes.hex()
