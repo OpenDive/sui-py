@@ -25,7 +25,7 @@ from sui_py.bcs import (
 )
 from sui_py.transactions.utils import BcsString
 from sui_py.types import SuiAddress
-from sui_py.transactions import MoveCallCommand
+from sui_py.transactions.commands import MoveCall  # Use pure data structure
 from sui_py.transactions.arguments import (
     GasCoinArgument, NestedResultArgument, InputArgument, ResultArgument
 )
@@ -331,8 +331,8 @@ class TestBCSCSharpEquivalent:
         Test simple programming transactions.
         Equivalent to C# SimpleProgrammingTransactionsTest.
         
-        This is a complex test that validates MoveCall serialization
-        with various argument types.
+        This test validates pure MoveCall serialization with various argument types,
+        matching the C# test that calls moveCallTransaction.Serialize() directly.
         """
         # Address constants from C# test
         sui = "0x0000000000000000000000000000000000000000000000000000000000000002"
@@ -341,8 +341,9 @@ class TestBCSCSharpEquivalent:
         sui_address = SuiAddress(sui)
         capy_address = SuiAddress(capy)
         
-        # Create MoveCall transaction like C# test
-        move_call = MoveCallCommand(
+        # Create pure MoveCall data structure like C# test
+        # This corresponds to the C# MoveCall that implements ICommand
+        move_call = MoveCall(
             package=sui,
             module="display",
             function="new",
@@ -355,27 +356,13 @@ class TestBCSCSharpEquivalent:
             ]
         )
         
-        # Serialize the MoveCall
+        # Serialize the pure MoveCall (no command tag)
+        # This matches the C# test: moveCallTransaction.Serialize(serializer)
         serializer = Serializer()
         move_call.serialize(serializer)
         actual_bytes = serializer.to_bytes()
         
-        # Expected bytes from C# test
-        # expected_bytes = bytes([
-        #     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
-        #     7, 100, 105, 115, 112, 108, 97, 121,
-        #     3, 110, 101, 119,
-        #     1,
-        #     7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-        #     4, 99, 97, 112, 121,
-        #     4, 67, 97, 112, 121,
-        #     0,
-        #     4,
-        #     0,
-        #     3, 0, 0, 1, 0, 1,
-        #     3, 0,
-        #     2, 1, 0
-        # ])
+        # Expected bytes from C# test (exactly 102 bytes, no command tag)
         expected_bytes = bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100, 105, 115, 112, 108, 97, 121, 3, 110, 101, 119, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 4, 99, 97, 112, 121, 4, 67, 97, 112, 121, 0, 4, 0, 3, 0, 0, 1, 0, 1, 3, 0, 2, 1, 0])
         
         # Compare serialized result
