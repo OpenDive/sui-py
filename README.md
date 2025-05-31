@@ -15,7 +15,9 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ✅ **BCS Serialization** - Complete Binary Canonical Serialization implementation
 
-✅ **Transaction Building** - Complete Programmable Transaction Block (PTB) system
+✅ **Transaction Building & Serialization** - Complete Programmable Transaction Block (PTB) system with C# Unity SDK compatibility
+
+✅ **Governance Read API** - Complete validator and staking information queries
 
 🚧 **In Development** - Write APIs for transaction execution
 
@@ -35,15 +37,16 @@ async with SuiClient("mainnet") as client:
 
 ### ✅ Implemented
 
-- **Transaction Building System**: Complete Programmable Transaction Block (PTB) implementation
+- **Transaction Building & Serialization System**: Complete Programmable Transaction Block (PTB) implementation with C# Unity SDK compatibility
   - **TransactionBuilder**: Fluent API for building complex transactions
-  - **Type-Safe Arguments**: PureArgument, ObjectArgument, ResultArgument with automatic conversion
+  - **Type-Safe Arguments**: PureArgument, ObjectArgument, ResultArgument, InputArgument with automatic conversion
   - **Full Command Support**: Move calls, object transfers, coin operations, package management
   - **Result Chaining**: Use outputs from one command as inputs to another
-  - **BCS Integration**: Complete serialization/deserialization with the existing BCS system
+  - **BCS Integration**: Complete serialization/deserialization with exact C# Unity SDK byte compatibility
   - **Input Deduplication**: Automatic optimization of duplicate inputs
   - **Validation**: Comprehensive validation including forward reference detection
   - **Error Handling**: Descriptive error messages for debugging
+  - **Cross-Language Compatibility**: Verified byte-for-byte serialization matching with C# Unity SDK test cases
 
 - **BCS (Binary Canonical Serialization)**: Complete implementation following Move language specification
   - **Protocol-based Architecture**: Type-safe `Serializable`/`Deserializable` protocols
@@ -62,6 +65,14 @@ async with SuiClient("mainnet") as client:
   - **Signature**: Unified signature class for all cryptographic schemes
   - **SignatureScheme**: Support for Ed25519 (Secp256k1 and Secp256r1 coming soon)
   - Sui address derivation with proper BLAKE2b hashing and scheme flags
+
+- **Governance Read API**: Complete implementation of governance-related RPC methods
+  - `get_committee_info()` - Get committee information for specific epoch
+  - `get_latest_sui_system_state()` - Get comprehensive system state information
+  - `get_reference_gas_price()` - Get current network reference gas price
+  - `get_stakes()` - Get all delegated stakes owned by an address
+  - `get_stakes_by_ids()` - Get delegated stakes by specific staked SUI IDs
+  - `get_validators_apy()` - Get validator APY information for current epoch
 
 - **Coin Query API**: Complete implementation of all coin-related RPC methods
   - `get_all_balances()` - Get all coin balances for an address
@@ -94,7 +105,6 @@ async with SuiClient("mainnet") as client:
 - Mnemonic phrase support for key derivation
 - Read API (checkpoints, protocol config)
 - Write API (transaction execution)
-- Governance Read API
 - Move Utils API
 - WebSocket client for subscriptions
 
@@ -325,6 +335,32 @@ async def main():
 asyncio.run(main())
 ```
 
+### Governance Read API
+```python
+import asyncio
+from sui_py import SuiClient
+
+async def main():
+    async with SuiClient("mainnet") as client:
+        # Get current system state
+        system_state = await client.governance_read.get_latest_sui_system_state()
+        print(f"Current epoch: {system_state.epoch}")
+        print(f"Total stake: {system_state.total_stake}")
+        print(f"Active validators: {len(system_state.active_validators)}")
+        
+        # Get validator APYs
+        validator_apys = await client.governance_read.get_validators_apy()
+        for validator_apy in validator_apys.apys[:5]:  # Show top 5
+            print(f"Validator {validator_apy.address}: {validator_apy.apy:.2%} APY")
+        
+        # Get stakes for an address
+        stakes = await client.governance_read.get_stakes("0x...")
+        for stake in stakes:
+            print(f"Staked with validator {stake.validator_address}")
+
+asyncio.run(main())
+```
+
 ## Testing
 
 ### Running Tests
@@ -385,13 +421,15 @@ python -m pytest tests/test_api.py -v
 
 The test suite covers:
 
-- **Transaction Building System**:
-  - ✅ Basic transaction construction (coin splits, transfers, Move calls)
-  - ✅ Complex result chaining and argument handling
-  - ✅ Package publishing and upgrading operations
-  - ✅ BCS serialization round-trip testing
-  - ✅ Input validation and error handling
-  - ✅ PTB validation and dependency checking
+- **Transaction Building & Serialization System**:
+  - ✅ **C# Unity SDK Compatibility**: Byte-for-byte serialization matching with official C# test cases
+  - ✅ **Argument Type System**: InputArgument, ResultArgument, ObjectArgument, PureArgument validation
+  - ✅ **Complex Transaction Patterns**: Multi-input/multi-command transaction structures
+  - ✅ **Result Chaining**: Command outputs used as inputs in subsequent commands  
+  - ✅ **PTB Structure Validation**: Input deduplication and command dependency checking
+  - ✅ **BCS Round-trip Testing**: Complete serialization/deserialization verification
+  - ✅ **Cross-Language Verification**: Python serialization exactly matches C# Unity SDK output
+  - ✅ **Error Handling**: Input validation and transaction building error cases
 
 - **BCS Implementation** (37 test cases - enhanced from C# Sui Unity SDK):
   - ✅ **Comprehensive Primitive Types**: All integer types (U8, U16, U32, U64, U128, U256) with exact value testing
