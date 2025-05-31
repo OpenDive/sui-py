@@ -91,6 +91,11 @@ class ObjectArgument(TransactionArgument):
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the object reference."""
+        # Match C# ObjectArg.Serialize() method:
+        # First write ObjectRefType.ImmOrOwned (0 for ImmOrOwned, 1 for Shared)
+        serializer.write_u8(0)  # ObjectRefType.ImmOrOwned
+        
+        # Then serialize the actual object reference
         self.object_ref.serialize(serializer)
     
     @classmethod

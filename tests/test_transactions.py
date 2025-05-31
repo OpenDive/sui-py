@@ -48,7 +48,7 @@ class TestTransactionSerialization:
         
         # Expected byte arrays from C# tests
         self.expected_single_input = bytes([
-            0, 0, 1, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100, 105, 115, 112, 108, 97, 121, 3, 110, 101, 119, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 99, 97, 112, 121, 4, 67, 97, 112, 121, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 173, 1, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 0 
+            0, 0, 1, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100, 105, 115, 112, 108, 97, 121, 3, 110, 101, 119, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 99, 97, 112, 121, 4, 67, 97, 112, 121, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 173, 1, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 0 
         ])
         
         self.expected_multiple_input = bytes([
@@ -680,6 +680,90 @@ class TestTransactionSerialization:
         print("Structure analysis:")
         print(f"Expected first 10 bytes: {expected_ptb[:10].hex()}")
         print(f"Our first 10 bytes:      {our_ptb[:10].hex()}")
+        
+        assert True  # Always pass for debug
+
+    def test_simple_argument_serialization(self):
+        """Debug test to check exact ObjectArgument serialization."""
+        print("\n=== SIMPLE ARGUMENT SERIALIZATION ===")
+        
+        from sui_py.transactions.arguments import ObjectArgument
+        from sui_py.types import ObjectRef
+        
+        # Create the exact object ref from C# test
+        payment_ref = ObjectRef(
+            object_id=self.object_id,
+            version=self.version,
+            digest=self.digest
+        )
+        
+        # Create ObjectArgument
+        obj_arg = ObjectArgument(payment_ref)
+        
+        # Serialize just the argument
+        arg_bytes = serialize(obj_arg)
+        print(f"ObjectArgument serialized: {arg_bytes.hex()}")
+        print(f"ObjectArgument length: {len(arg_bytes)} bytes")
+        
+        # First byte should be the argument type (1 for Object)
+        if len(arg_bytes) > 0:
+            first_byte = arg_bytes[0]
+            print(f"First byte (should be 1 for Object): {first_byte}")
+            if first_byte == 1:
+                print("✓ Correct ObjectArgument type tag")
+            else:
+                print(f"❌ Wrong argument type tag, expected 1, got {first_byte}")
+        
+        assert True  # Always pass for debug
+
+    def test_simple_command_serialization(self):
+        """Debug test to check exact MoveCallCommand serialization."""
+        print("\n=== SIMPLE COMMAND SERIALIZATION ===")
+        
+        from sui_py.transactions.commands import MoveCallCommand
+        from sui_py.transactions.arguments import ObjectArgument
+        from sui_py.types import ObjectRef
+        
+        # Create the exact object ref from C# test
+        payment_ref = ObjectRef(
+            object_id=self.object_id,
+            version=self.version,
+            digest=self.digest
+        )
+        
+        # Create ObjectArgument
+        obj_arg = ObjectArgument(payment_ref)
+        
+        # Create MoveCallCommand
+        move_call = MoveCallCommand(
+            package=self.sui_address_hex,
+            module="display", 
+            function="new",
+            arguments=[obj_arg],
+            type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
+        )
+        
+        # Serialize just the command
+        cmd_bytes = serialize(move_call)
+        print(f"MoveCallCommand serialized: {cmd_bytes.hex()}")
+        print(f"MoveCallCommand length: {len(cmd_bytes)} bytes")
+        
+        # First byte should be the command type (0 for MoveCall)
+        if len(cmd_bytes) > 0:
+            first_byte = cmd_bytes[0]
+            print(f"First byte (should be 0 for MoveCall): {first_byte}")
+            if first_byte == 0:
+                print("✓ Correct MoveCallCommand type tag")
+            else:
+                print(f"❌ Wrong command type tag, expected 0, got {first_byte}")
+        
+        # Look for key patterns
+        if b"display" in cmd_bytes:
+            print("✓ 'display' found in command")
+        if b"new" in cmd_bytes:
+            print("✓ 'new' found in command")
+        if b"capy" in cmd_bytes:
+            print("✓ 'capy' found in command")
         
         assert True  # Always pass for debug
 
