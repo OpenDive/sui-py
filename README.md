@@ -57,13 +57,15 @@ async with SuiClient("mainnet") as client:
   - **Comprehensive Error Handling**: Hierarchical exception system with detailed context
   - **Factory Functions**: Convenient constructors (`u8()`, `u16()`, etc.)
 
-- **Cryptographic Primitives**: Complete Ed25519 implementation with unified signature handling
-  - `create_private_key()` - Generate new Ed25519 private keys
+- **Cryptographic Primitives**: Complete Ed25519 and Secp256k1 implementation with unified signature handling
+  - `create_private_key()` - Generate new Ed25519 and Secp256k1 private keys
   - `import_private_key()` - Import keys from bytes or hex
   - **Ed25519PrivateKey**: Key generation, signing, serialization
   - **Ed25519PublicKey**: Signature verification, Sui address derivation
+  - **Secp256k1PrivateKey**: Key generation, signing, serialization
+  - **Secp256k1PublicKey**: Signature verification, Sui address derivation
   - **Signature**: Unified signature class for all cryptographic schemes
-  - **SignatureScheme**: Support for Ed25519 (Secp256k1 and Secp256r1 coming soon)
+  - **SignatureScheme**: Support for Ed25519 and Secp256k1 (Secp256r1 coming soon)
   - Sui address derivation with proper BLAKE2b hashing and scheme flags
 
 - **Governance Read API**: Complete implementation of governance-related RPC methods
@@ -100,7 +102,7 @@ async with SuiClient("mainnet") as client:
   - Exponential backoff retry logic and error handling
 
 ### 🚧 Coming Soon
-- Secp256k1 and Secp256r1 cryptographic schemes
+- Secp256r1 cryptographic scheme
 - Account abstraction with multi-scheme support
 - Mnemonic phrase support for key derivation
 - Read API (checkpoints, protocol config)
