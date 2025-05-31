@@ -163,7 +163,7 @@ class TestTransactionSerialization:
             arguments=[
                 InputArgument(0),  # TransactionArgument(Input, TransactionBlockInput(0))
                 InputArgument(1),  # TransactionArgument(Input, TransactionBlockInput(1))
-                ResultArgument(command_index=2, result_index=0)  # TransactionArgument(Result, Result(2))
+                ResultArgument(2)  # TransactionArgument(Result, Result(2)) - matches C# Result(2)
             ],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
