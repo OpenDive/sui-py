@@ -47,10 +47,9 @@ class GasData(Serializable):
     
     def serialize(self, serializer: Serializer) -> None:
         """Serialize gas data."""
-        # From C#: GasData(budget, price, payment, owner)
-        # Serialize in exact order from C# constructor
+        # Match C# exact order: Payment, Owner, Price, Budget
         
-        # Serialize payment objects vector first (this seems to be the order in C# BCS)
+        # Serialize payment objects vector (sequence)
         serializer.write_uleb128(len(self.payment))
         for payment_ref in self.payment:
             payment_ref.serialize(serializer)
@@ -58,11 +57,11 @@ class GasData(Serializable):
         # Serialize owner address  
         self.owner.serialize(serializer)
         
-        # Serialize budget as u64
-        serializer.write_u64(int(self.budget))
-        
         # Serialize price as u64
         serializer.write_u64(int(self.price))
+        
+        # Serialize budget as u64
+        serializer.write_u64(int(self.budget))
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> 'GasData':

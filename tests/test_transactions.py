@@ -116,18 +116,14 @@ class TestTransactionSerialization:
         print(f"Actual:   {actual_bytes[:50].hex()}...")
         print(f"Expected: {self.expected_single_input[:50].hex()}...")
         
-        # For now, verify basic properties until we get exact serialization match
-        assert len(actual_bytes) > 0
-        assert isinstance(actual_bytes, bytes)
-        
-        # Verify key components are present in serialized data
-        assert b"display" in actual_bytes
-        assert b"new" in actual_bytes
-        assert b"capy" in actual_bytes
-        assert b"Capy" in actual_bytes
-        
-        # TODO: Once serialization format is exactly matched, enable this:
-        # assert actual_bytes == self.expected_single_input
+        # Assert exact byte match with C# test expected output
+        assert actual_bytes == self.expected_single_input, (
+            f"Serialized bytes don't match expected C# output!\n"
+            f"Actual length: {len(actual_bytes)}\n"
+            f"Expected length: {len(self.expected_single_input)}\n"
+            f"Actual bytes:   {actual_bytes.hex()}\n"
+            f"Expected bytes: {self.expected_single_input.hex()}"
+        )
     
     def test_transaction_data_serialization_multiple_inputs(self):
         """
@@ -459,6 +455,221 @@ class TestTransactionSerialization:
         if version_pos >= 0:
             print(f"✓ Version (10000) found at byte {version_pos}")
             
+        assert True  # Always pass for debug
+
+    def test_ptb_byte_comparison(self):
+        """Compare our PTB serialization with the embedded PTB in expected bytes."""
+        print("\n=== PTB BYTE COMPARISON ===")
+        
+        # Build the PTB exactly like in C# test
+        tx = TransactionBuilder()
+        payment_obj = tx.object(self.object_id)
+        
+        move_result = tx.move_call(
+            target=f"{self.sui_address_hex}::display::new",
+            arguments=[payment_obj],
+            type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
+        )
+        
+        ptb = tx.build()
+        our_ptb_bytes = ptb.to_bytes()
+        
+        print(f"Our PTB length: {len(our_ptb_bytes)} bytes")
+        print(f"Our PTB hex: {our_ptb_bytes.hex()}")
+        print()
+        
+        # Extract PTB from expected bytes (should be bytes 1-159 based on reverse engineering)
+        # But let's be more precise - the sender starts at byte 160, so PTB should be bytes 1-159
+        expected_hex = self.expected_single_input.hex()
+        
+        # PTB starts after transaction type (byte 0) and ends before sender (byte 160)
+        expected_ptb_bytes = self.expected_single_input[1:160]  # bytes 1-159
+        print(f"Expected PTB length: {len(expected_ptb_bytes)} bytes")
+        print(f"Expected PTB hex: {expected_ptb_bytes.hex()}")
+        print()
+        
+        # Compare byte by byte
+        min_length = min(len(our_ptb_bytes), len(expected_ptb_bytes))
+        print(f"Comparing first {min_length} bytes:")
+        
+        differences = []
+        for i in range(min_length):
+            if our_ptb_bytes[i] != expected_ptb_bytes[i]:
+                differences.append((i, our_ptb_bytes[i], expected_ptb_bytes[i]))
+        
+        if differences:
+            print(f"Found {len(differences)} differences:")
+            for i, (pos, actual, expected) in enumerate(differences[:10]):  # Show first 10 differences
+                print(f"  Byte {pos}: actual={actual:02x}, expected={expected:02x}")
+        else:
+            print("✓ All compared bytes match!")
+            
+        if len(our_ptb_bytes) != len(expected_ptb_bytes):
+            print(f"❌ Length difference: our={len(our_ptb_bytes)}, expected={len(expected_ptb_bytes)}")
+        else:
+            print("✓ Lengths match!")
+            
+        assert True  # Always pass for debug
+
+    def test_object_ref_serialization(self):
+        """Test ObjectRef serialization to match C# SuiObjectRef."""
+        print("\n=== OBJECT REF SERIALIZATION ===")
+        
+        # Create the exact ObjectRef from C# test
+        payment_ref = ObjectRef(
+            object_id=self.object_id,
+            version=self.version,
+            digest=self.digest
+        )
+        
+        ref_bytes = serialize(payment_ref)
+        print(f"ObjectRef serialized: {ref_bytes.hex()}")
+        print(f"ObjectRef length: {len(ref_bytes)} bytes")
+        
+        # Look for the known patterns in expected bytes
+        expected_hex = self.expected_single_input.hex()
+        ref_hex = ref_bytes.hex()
+        
+        # Object ID should be the first 32 bytes (64 hex chars)
+        expected_obj_id = "1000000000000000000000000000000000000000000000000000000000000000"
+        if expected_obj_id in ref_hex:
+            print("✓ Object ID found in serialized ObjectRef")
+        
+        # Version should be 10000 = 0x2710 as little-endian u64 = 1027000000000000
+        expected_version = "1027000000000000"
+        if expected_version in ref_hex:
+            print("✓ Version (10000) found in serialized ObjectRef")
+        else:
+            print(f"❌ Version pattern not found. Looking for: {expected_version}")
+            
+        # Check if this pattern appears in the expected bytes
+        if expected_version in expected_hex:
+            pos = expected_hex.find(expected_version) // 2
+            print(f"✓ Version pattern found in expected bytes at position {pos}")
+        
+        # Let's also check the digest
+        digest_bytes = self.digest.encode('utf-8')
+        digest_hex = digest_bytes.hex()
+        print(f"Digest '{self.digest}' as hex: {digest_hex}")
+        
+        if digest_hex in ref_hex:
+            print("✓ Digest found in serialized ObjectRef")
+            
+        assert True  # Always pass for debug
+
+    def test_digest_encoding_analysis(self):
+        """Analyze how the digest should be encoded based on expected bytes."""
+        print("\n=== DIGEST ENCODING ANALYSIS ===")
+        
+        digest = self.digest  # "1Bhh3pU9gLXZhoVxkr5wyg9sX6"
+        print(f"Original digest: '{digest}'")
+        
+        # Check the bytes around position 44 in expected
+        expected_bytes = self.expected_single_input
+        bytes_44_64 = expected_bytes[44:64]
+        print(f"Expected bytes 44-64: {bytes_44_64.hex()}")
+        print(f"Expected bytes 44-64 as bytes: {list(bytes_44_64)}")
+        
+        # Interpret this as a length-prefixed string
+        if len(bytes_44_64) > 0:
+            length = bytes_44_64[0]
+            print(f"First byte (length?): {length}")
+            if length > 0 and length < len(bytes_44_64):
+                content = bytes_44_64[1:length+1]
+                print(f"Content bytes: {content}")
+                try:
+                    content_str = content.decode('utf-8')
+                    print(f"Content as string: '{content_str}'")
+                except:
+                    print("Content is not valid UTF-8")
+        
+        # Let's try different digest encodings
+        print("\nDifferent digest encodings:")
+        
+        # UTF-8 bytes
+        utf8_bytes = digest.encode('utf-8')
+        print(f"UTF-8: {utf8_bytes.hex()}")
+        
+        # Try base64 decode (since digest might be base64)
+        try:
+            import base64
+            decoded = base64.b64decode(digest + '==')  # Add padding if needed
+            print(f"Base64 decoded: {decoded.hex()}")
+        except:
+            print("Not valid base64")
+            
+        # Try base58 decode (common in blockchain)
+        try:
+            import base58
+            decoded = base58.b58decode(digest)
+            print(f"Base58 decoded: {decoded.hex()}")
+        except:
+            print("Not valid base58 (or base58 not available)")
+            
+        # Let's see if the pattern 000102030405060708090001020304050607080900 matches anything
+        mystery_pattern = bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+        print(f"Mystery pattern: {mystery_pattern.hex()}")
+        print(f"Mystery pattern length: {len(mystery_pattern)}")
+        
+        assert True  # Always pass for debug
+
+    def test_manual_ptb_construction(self):
+        """Manually construct PTB to match C# expected bytes exactly."""
+        print("\n=== MANUAL PTB CONSTRUCTION ===")
+        
+        # Based on analysis, the C# test seems to use mock data
+        # Let's try to construct the exact PTB that would produce the expected bytes
+        
+        from sui_py.bcs import Serializer
+        
+        # Try to manually serialize what the C# test expects
+        serializer = Serializer()
+        
+        # Based on expected bytes analysis:
+        # - Expected PTB starts at byte 1, length 159 bytes
+        # - It should contain: inputs sequence, commands sequence
+        
+        # Let's try to manually build the inputs section first
+        # The expected starts with: 00 01 01 00 10 00 00 ...
+        # This might be:
+        # - 00: sequence length for inputs (0 inputs?)
+        # - 01: sequence length for commands (1 command)
+        # - 01: command type 
+        # - 00: move call variant
+        # - 10 00 00 ...: the object id
+        
+        # Wait, let me re-interpret. Looking at byte-by-byte:
+        # Expected PTB bytes: 00 01 01 00 10 00 00 ...
+        # This could be:
+        # - 00: Could this be sequence length of inputs? (But C# test has 1 input)
+        # - This doesn't match. Let me look at the C# serialization differently.
+        
+        expected_ptb = self.expected_single_input[1:160]  # Extract PTB portion
+        print(f"Expected PTB: {expected_ptb.hex()}")
+        
+        # Let's try a different approach - look at the exact C# CallArg structure
+        # and see if our implementation matches
+        
+        # Print our current PTB for comparison
+        tx = TransactionBuilder()
+        payment_obj = tx.object(self.object_id)
+        move_result = tx.move_call(
+            target=f"{self.sui_address_hex}::display::new",
+            arguments=[payment_obj],
+            type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
+        )
+        ptb = tx.build()
+        our_ptb = ptb.to_bytes()
+        
+        print(f"Our PTB:      {our_ptb.hex()}")
+        print(f"Expected PTB: {expected_ptb.hex()}")
+        print()
+        
+        # Let's analyze the structure
+        print("Structure analysis:")
+        print(f"Expected first 10 bytes: {expected_ptb[:10].hex()}")
+        print(f"Our first 10 bytes:      {our_ptb[:10].hex()}")
+        
         assert True  # Always pass for debug
 
 
