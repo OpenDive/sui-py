@@ -227,7 +227,13 @@ class InputArgument(TransactionArgument):
     Reference to a PTB input by index.
     
     This is used in command arguments to reference inputs in the PTB inputs vector.
-    Based on the Rust/TypeScript Argument enum pattern.
+    Based on the C# SDK TransactionArgumentKind enum pattern.
+    
+    Tag values from C# SDK:
+    - GasCoin = 0
+    - Input = 1  
+    - Result = 2
+    - NestedResult = 3
     """
     input_index: int
     
@@ -237,7 +243,7 @@ class InputArgument(TransactionArgument):
             raise ValueError("Input index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        # Based on C# test expectation at index 158
+        # Based on C# SDK TransactionArgumentKind.Input
         return 1  # Input variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
@@ -265,6 +271,14 @@ AnyArgument = Union[
 def deserialize_argument(deserializer: Deserializer) -> AnyArgument:
     """
     Deserialize any transaction argument based on its tag.
+    
+    Tag values from C# SDK:
+    - GasCoin = 0
+    - Input = 1
+    - Result = 2  
+    - NestedResult = 3
+    - Pure = 0 (for PTB inputs only)
+    - Object = 1 (for PTB inputs only)
     
     Args:
         deserializer: The BCS deserializer
