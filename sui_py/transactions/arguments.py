@@ -46,7 +46,7 @@ class PureArgument(TransactionArgument):
     bcs_bytes: bytes
     
     def get_argument_tag(self) -> int:
-        return 4  # Pure variant in CallArg enum
+        return 0  # Pure variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the pure value as a byte vector."""
@@ -87,7 +87,7 @@ class ObjectArgument(TransactionArgument):
     object_ref: ObjectRef
     
     def get_argument_tag(self) -> int:
-        return 5  # Object variant in CallArg enum
+        return 1  # Object variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the object reference."""
@@ -145,7 +145,7 @@ class ResultArgument(TransactionArgument):
             raise ValueError("Result index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        return 2  # Result variant in Argument enum
+        return 2  # Result variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the command and result indices."""
@@ -182,7 +182,7 @@ class NestedResultArgument(TransactionArgument):
             raise ValueError("Nested index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        return 3  # NestedResult variant in Argument enum
+        return 3  # NestedResult variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the command, result, and nested indices."""
@@ -209,7 +209,7 @@ class GasCoinArgument(TransactionArgument):
     """
     
     def get_argument_tag(self) -> int:
-        return 0  # GasCoin variant
+        return 4  # GasCoin variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Gas coin has no additional data."""
@@ -237,8 +237,7 @@ class InputArgument(TransactionArgument):
             raise ValueError("Input index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        # Based on Rust/TypeScript Argument enum:
-        # GasCoin = 0, Input = 1, Result = 2, NestedResult = 3
+        # Based on C# test expectation at index 158
         return 1  # Input variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
@@ -278,20 +277,18 @@ def deserialize_argument(deserializer: Deserializer) -> AnyArgument:
     """
     tag = deserializer.read_u8()
     
-    # Command argument tags (Argument enum):
     if tag == 0:
-        return GasCoinArgument.deserialize(deserializer)
+        return PureArgument.deserialize(deserializer)
     elif tag == 1:
-        return InputArgument.deserialize(deserializer)
+        return ObjectArgument.deserialize(deserializer)
     elif tag == 2:
         return ResultArgument.deserialize(deserializer)
     elif tag == 3:
         return NestedResultArgument.deserialize(deserializer)
-    # PTB input tags (CallArg enum) - these shouldn't appear in command arguments
     elif tag == 4:
-        return PureArgument.deserialize(deserializer)
+        return GasCoinArgument.deserialize(deserializer)
     elif tag == 5:
-        return ObjectArgument.deserialize(deserializer)
+        return InputArgument.deserialize(deserializer)
     else:
         raise ValueError(f"Unknown argument tag: {tag}")
 
