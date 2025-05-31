@@ -148,24 +148,17 @@ class TestTransactionSerialization:
             owner=SuiAddress(self.sui_address_hex)
         )
         
-        # Build PTB manually to match C# test structure exactly
-        # C# creates: CallArg[] inputs = new CallArg[] { new CallArg(CallArgumentType.Object, new ObjectCallArg(...)) }
-        object_input = ObjectArgument(payment_ref)
+        # Use TransactionBuilder to correctly handle argument indexing like single input test
+        tx = TransactionBuilder()
+        payment_obj = tx.object(self.object_id, self.version, self.digest)
         
-        # C# creates: MoveCall with specific structure
-        move_call = MoveCallCommand(
-            package=self.sui_address_hex,  # Use string directly
-            module="display", 
-            function="new",
-            arguments=[object_input],
+        move_result = tx.move_call(
+            target=f"{self.sui_address_hex}::display::new",
+            arguments=[payment_obj],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
         
-        # Create PTB with exact structure from C# test
-        ptb = ProgrammableTransactionBlock(
-            inputs=[object_input],
-            commands=[move_call]
-        )
+        ptb = tx.build()
         
         # Create complete transaction data structure
         transaction_kind = TransactionKind(
@@ -203,8 +196,14 @@ class TestTransactionSerialization:
         assert b"capy" in actual_bytes
         assert b"Capy" in actual_bytes
         
-        # TODO: Once serialization format is exactly matched, enable this:
-        assert actual_bytes == self.expected_multiple_input
+        # Assert exact byte match with C# test expected output
+        assert actual_bytes == self.expected_multiple_input, (
+            f"Serialized bytes don't match expected C# output!\n"
+            f"Actual length: {len(actual_bytes)}\n"
+            f"Expected length: {len(self.expected_multiple_input)}\n"
+            f"Actual bytes:   {actual_bytes.hex()}\n"
+            f"Expected bytes: {self.expected_multiple_input.hex()}"
+        )
     
     def test_move_call_pattern_matching(self):
         """
