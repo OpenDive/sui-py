@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from ..bcs import serialize, Serializer, Serializable
 from .arguments import (
     AnyArgument, PureArgument, ObjectArgument, ResultArgument, 
-    GasCoinArgument, pure, object_arg, gas_coin
+    GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
     AnyCommand, MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
@@ -78,7 +78,7 @@ class TransactionBuilder(Serializable):
         self._input_cache: Dict[Any, int] = {}  # For deduplication
         self._gas_coin_used = False
     
-    def pure(self, value: Any, type_hint: Optional[str] = None) -> PureArgument:
+    def pure(self, value: Any, type_hint: Optional[str] = None) -> InputArgument:
         """
         Add a pure value argument with automatic BCS encoding.
         
@@ -87,7 +87,7 @@ class TransactionBuilder(Serializable):
             type_hint: Optional type hint for encoding (e.g., "u8", "u64", "vector<u8>")
             
         Returns:
-            A PureArgument that can be used in commands
+            An InputArgument that references the pure value in the PTB inputs
             
         Example:
             amount = tx.pure(1000, "u64")
@@ -96,9 +96,10 @@ class TransactionBuilder(Serializable):
         """
         # Create pure argument with automatic encoding
         pure_arg = PureArgument.from_value(value, type_hint)
-        return self._add_input(pure_arg)
+        input_index = self._add_input(pure_arg)
+        return InputArgument(input_index)
     
-    def object(self, object_id: str, version: Optional[int] = None, digest: Optional[str] = None) -> ObjectArgument:
+    def object(self, object_id: str, version: Optional[int] = None, digest: Optional[str] = None) -> InputArgument:
         """
         Add an object reference argument.
         
@@ -108,14 +109,15 @@ class TransactionBuilder(Serializable):
             digest: Optional object digest
             
         Returns:
-            An ObjectArgument that can be used in commands
+            An InputArgument that references the object in the PTB inputs
             
         Example:
             coin = tx.object("0x123...")
             nft = tx.object("0xabc...", version=5)
         """
         obj_arg = ObjectArgument.from_object_id(object_id, version, digest)
-        return self._add_input(obj_arg)
+        input_index = self._add_input(obj_arg)
+        return InputArgument(input_index)
     
     def gas_coin(self) -> GasCoinArgument:
         """
@@ -181,8 +183,8 @@ class TransactionBuilder(Serializable):
             recipient: Recipient address
             
         Example:
-            tx.transfer_objects([coin1, coin2], "0x123...")
-            tx.transfer_objects([result.single()], tx.pure("0xabc..."))
+            coin = tx.object("0x123...")
+            tx.transfer_objects([coin], tx.pure("0xabc..."))
         """
         converted_objects = [self._convert_argument(obj) for obj in objects]
         converted_recipient = self._convert_argument(recipient)
@@ -199,15 +201,15 @@ class TransactionBuilder(Serializable):
         
         Args:
             coin: The coin to split
-            amounts: List of amounts to split off
+            amounts: List of amounts to split into
             
         Returns:
             A ResultHandle for the new coins
             
         Example:
-            new_coins = tx.split_coins(coin, [1000, 2000])
-            first_coin = new_coins[0]
-            second_coin = new_coins[1]
+            coin = tx.object("0x123...")
+            amounts = [tx.pure(1000), tx.pure(2000)]
+            new_coins = tx.split_coins(coin, amounts)
         """
         converted_coin = self._convert_argument(coin)
         converted_amounts = [self._convert_argument(amount) for amount in amounts]
@@ -220,7 +222,7 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Split returns one new coin per amount
+        # Split returns as many coins as amounts
         return ResultHandle(command_index, result_count=len(amounts))
     
     def merge_coins(self, destination: Any, sources: List[Any]) -> None:
@@ -232,7 +234,9 @@ class TransactionBuilder(Serializable):
             sources: List of source coins to merge
             
         Example:
-            tx.merge_coins(main_coin, [coin1, coin2, coin3])
+            main_coin = tx.object("0x123...")
+            other_coins = [tx.object("0xabc..."), tx.object("0xdef...")]
+            tx.merge_coins(main_coin, other_coins)
         """
         converted_destination = self._convert_argument(destination)
         converted_sources = [self._convert_argument(source) for source in sources]
@@ -376,7 +380,7 @@ class TransactionBuilder(Serializable):
     
     def _convert_argument(self, arg: Any) -> AnyArgument:
         """Convert a value to the appropriate argument type."""
-        if isinstance(arg, (PureArgument, ObjectArgument, ResultArgument, GasCoinArgument)):
+        if isinstance(arg, (PureArgument, ObjectArgument, ResultArgument, GasCoinArgument, InputArgument)):
             return arg
         elif isinstance(arg, str) and arg.startswith("0x"):
             # Treat as address - could be object ID or address
@@ -387,22 +391,21 @@ class TransactionBuilder(Serializable):
             # Try to convert as pure value
             return self.pure(arg)
     
-    def _add_input(self, arg: AnyArgument) -> AnyArgument:
-        """Add input with deduplication."""
+    def _add_input(self, arg: AnyArgument) -> int:
+        """Add input with deduplication and return the index."""
         # Simple deduplication based on content
         # For more sophisticated deduplication, we could use content hashing
         cache_key = (type(arg), str(arg))
         
         if cache_key in self._input_cache:
-            # Return reference to existing input
-            existing_index = self._input_cache[cache_key]
-            return self._inputs[existing_index]
+            # Return index of existing input
+            return self._input_cache[cache_key]
         
         # Add new input
         index = len(self._inputs)
         self._inputs.append(arg)
         self._input_cache[cache_key] = index
-        return arg
+        return index
     
     def _validate(self) -> None:
         """Validate the transaction before building."""

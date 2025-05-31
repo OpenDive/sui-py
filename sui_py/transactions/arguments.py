@@ -46,7 +46,7 @@ class PureArgument(TransactionArgument):
     bcs_bytes: bytes
     
     def get_argument_tag(self) -> int:
-        return 0  # Pure variant
+        return 4  # Pure variant in CallArg enum
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the pure value as a byte vector."""
@@ -87,7 +87,7 @@ class ObjectArgument(TransactionArgument):
     object_ref: ObjectRef
     
     def get_argument_tag(self) -> int:
-        return 1  # Object variant
+        return 5  # Object variant in CallArg enum
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the object reference."""
@@ -145,7 +145,7 @@ class ResultArgument(TransactionArgument):
             raise ValueError("Result index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        return 2  # Result variant
+        return 2  # Result variant in Argument enum
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the command and result indices."""
@@ -182,7 +182,7 @@ class NestedResultArgument(TransactionArgument):
             raise ValueError("Nested index must be non-negative")
     
     def get_argument_tag(self) -> int:
-        return 3  # NestedResult variant
+        return 3  # NestedResult variant in Argument enum
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the command, result, and nested indices."""
@@ -209,7 +209,7 @@ class GasCoinArgument(TransactionArgument):
     """
     
     def get_argument_tag(self) -> int:
-        return 4  # GasCoin variant
+        return 0  # GasCoin variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Gas coin has no additional data."""
@@ -221,13 +221,45 @@ class GasCoinArgument(TransactionArgument):
         return cls()
 
 
+@dataclass(frozen=True)
+class InputArgument(TransactionArgument):
+    """
+    Reference to a PTB input by index.
+    
+    This is used in command arguments to reference inputs in the PTB inputs vector.
+    Based on the Rust/TypeScript Argument enum pattern.
+    """
+    input_index: int
+    
+    def __post_init__(self):
+        """Validate input argument index."""
+        if self.input_index < 0:
+            raise ValueError("Input index must be non-negative")
+    
+    def get_argument_tag(self) -> int:
+        # Based on Rust/TypeScript Argument enum:
+        # GasCoin = 0, Input = 1, Result = 2, NestedResult = 3
+        return 1  # Input variant
+    
+    def serialize_argument_data(self, serializer: Serializer) -> None:
+        """Serialize the input index."""
+        serializer.write_u16(self.input_index)
+    
+    @classmethod
+    def deserialize(cls, deserializer: Deserializer) -> Self:
+        """Deserialize an input argument."""
+        input_index = deserializer.read_u16()
+        return cls(input_index)
+
+
 # Type alias for all argument types
 AnyArgument = Union[
     PureArgument,
     ObjectArgument, 
     ResultArgument,
     NestedResultArgument,
-    GasCoinArgument
+    GasCoinArgument,
+    InputArgument
 ]
 
 
@@ -246,16 +278,20 @@ def deserialize_argument(deserializer: Deserializer) -> AnyArgument:
     """
     tag = deserializer.read_u8()
     
+    # Command argument tags (Argument enum):
     if tag == 0:
-        return PureArgument.deserialize(deserializer)
+        return GasCoinArgument.deserialize(deserializer)
     elif tag == 1:
-        return ObjectArgument.deserialize(deserializer)
+        return InputArgument.deserialize(deserializer)
     elif tag == 2:
         return ResultArgument.deserialize(deserializer)
     elif tag == 3:
         return NestedResultArgument.deserialize(deserializer)
+    # PTB input tags (CallArg enum) - these shouldn't appear in command arguments
     elif tag == 4:
-        return GasCoinArgument.deserialize(deserializer)
+        return PureArgument.deserialize(deserializer)
+    elif tag == 5:
+        return ObjectArgument.deserialize(deserializer)
     else:
         raise ValueError(f"Unknown argument tag: {tag}")
 
