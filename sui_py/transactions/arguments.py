@@ -148,16 +148,14 @@ class ResultArgument(TransactionArgument):
         return 2  # Result variant
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
-        """Serialize the command and result indices."""
+        """Serialize only the command index to match C# Result pattern."""
         serializer.write_u16(self.command_index)
-        serializer.write_u16(self.result_index)
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
-        """Deserialize a result argument."""
+        """Deserialize a result argument with only command index."""
         command_index = deserializer.read_u16()
-        result_index = deserializer.read_u16()
-        return cls(command_index, result_index)
+        return cls(command_index, 0)  # Default result_index to 0
 
 
 @dataclass(frozen=True)
