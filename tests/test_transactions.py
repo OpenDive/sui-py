@@ -130,6 +130,7 @@ class TestTransactionSerialization:
         Test transaction data serialization with multiple inputs.
         
         Equivalent to C# TransactionDataSerialization test.
+        This test has 1 PTB input but 3 MoveCall arguments: Input(0), Input(1), Result(2).
         """
         # Create exact structures from C# test
         
@@ -148,17 +149,30 @@ class TestTransactionSerialization:
             owner=SuiAddress(self.sui_address_hex)
         )
         
-        # Use TransactionBuilder to correctly handle argument indexing like single input test
-        tx = TransactionBuilder()
-        payment_obj = tx.object(self.object_id, self.version, self.digest)
+        # Build PTB manually to match C# test structure exactly
+        # C# creates: CallArg[] inputs = new CallArg[] { new CallArg(CallArgumentType.Object, new ObjectCallArg(...)) }
+        object_input = ObjectArgument(payment_ref)
         
-        move_result = tx.move_call(
-            target=f"{self.sui_address_hex}::display::new",
-            arguments=[payment_obj],
+        # C# creates: MoveCall with 3 arguments: Input(0), Input(1), Result(2)
+        from sui_py.transactions.arguments import InputArgument, ResultArgument
+        
+        move_call = MoveCallCommand(
+            package=self.sui_address_hex,
+            module="display", 
+            function="new",
+            arguments=[
+                InputArgument(0),  # TransactionArgument(Input, TransactionBlockInput(0))
+                InputArgument(1),  # TransactionArgument(Input, TransactionBlockInput(1))
+                ResultArgument(2)  # TransactionArgument(Result, Result(2))
+            ],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
         
-        ptb = tx.build()
+        # Create PTB with exact structure from C# test
+        ptb = ProgrammableTransactionBlock(
+            inputs=[object_input],  # Only 1 PTB input
+            commands=[move_call]
+        )
         
         # Create complete transaction data structure
         transaction_kind = TransactionKind(
