@@ -1,6 +1,35 @@
 # sui-py
 SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blockchain
 
+## Table of Contents
+
+- [Design Philosophy](#design-philosophy)
+- [Current Status](#current-status)
+- [Features](#features)
+  - [Async-First Design](#async-first-design)
+  - [✅ Implemented](#-implemented)
+  - [🚧 Coming Soon](#-coming-soon)
+- [Installation](#installation)
+  - [From PyPI (Coming Soon)](#from-pypi-coming-soon)
+  - [Development Setup](#development-setup)
+- [Quick Start](#quick-start)
+  - [BCS Serialization](#bcs-serialization)
+  - [Cryptographic Operations](#cryptographic-operations)
+  - [Transaction Building](#transaction-building)
+  - [Coin Query API](#coin-query-api)
+  - [Governance Read API](#governance-read-api)
+  - [Extended API](#extended-api)
+- [Testing](#testing)
+  - [Running Tests](#running-tests)
+  - [Test Coverage](#test-coverage)
+- [Supported Networks](#supported-networks)
+- [Error Handling](#error-handling)
+- [Examples](#examples)
+  - [Real-World Event Indexer](#real-world-event-indexer)
+  - [Quick Examples](#quick-examples)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Design Philosophy
 
 - **Async-First**: Built for high-performance concurrent operations
