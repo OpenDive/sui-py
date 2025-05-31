@@ -16,7 +16,7 @@ from typing_extensions import Self
 from ..bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector
 from ..types import ObjectID
 from ..types.type_tag import parse_type_tag, deserialize_type_tag
-from .arguments import AnyArgument, deserialize_argument
+from .arguments import CommandArgument, deserialize_command_argument
 from .utils import BcsString, parse_move_call_target, validate_object_id
 
 
@@ -51,7 +51,7 @@ class MoveCallCommand(TransactionCommand):
     module: str
     function: str
     type_arguments: List[str]
-    arguments: List[AnyArgument]
+    arguments: List[CommandArgument]  # Command arguments only
     
     def __post_init__(self):
         """Validate Move call parameters."""
@@ -95,13 +95,13 @@ class MoveCallCommand(TransactionCommand):
         type_arguments = [str(tag) for tag in type_args_vector.elements]
         
         # Read arguments
-        args_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        args_vector = BcsVector.deserialize(deserializer, deserialize_command_argument)
         arguments = args_vector.elements
         
         return cls(package, module, function, type_arguments, arguments)
     
     @classmethod
-    def from_target(cls, target: str, arguments: List[AnyArgument] = None, type_arguments: List[str] = None) -> "MoveCallCommand":
+    def from_target(cls, target: str, arguments: List[CommandArgument] = None, type_arguments: List[str] = None) -> "MoveCallCommand":
         """
         Create a Move call command from a target string.
         
@@ -131,8 +131,8 @@ class TransferObjectsCommand(TransactionCommand):
     Transfers a list of objects to a recipient address. Objects must have
     the 'store' ability and be owned by the transaction sender.
     """
-    objects: List[AnyArgument]
-    recipient: AnyArgument
+    objects: List[CommandArgument]
+    recipient: CommandArgument
     
     def __post_init__(self):
         """Validate transfer parameters."""
@@ -151,9 +151,9 @@ class TransferObjectsCommand(TransactionCommand):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
         """Deserialize a transfer objects command."""
-        objects_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        objects_vector = BcsVector.deserialize(deserializer, deserialize_command_argument)
         objects = objects_vector.elements
-        recipient = deserialize_argument(deserializer)
+        recipient = deserialize_command_argument(deserializer)
         return cls(objects, recipient)
 
 
@@ -165,8 +165,8 @@ class SplitCoinsCommand(TransactionCommand):
     Splits a coin into multiple new coins with specified amounts.
     The original coin's balance is reduced by the total split amount.
     """
-    coin: AnyArgument
-    amounts: List[AnyArgument]
+    coin: CommandArgument
+    amounts: List[CommandArgument]
     
     def __post_init__(self):
         """Validate split parameters."""
@@ -185,8 +185,8 @@ class SplitCoinsCommand(TransactionCommand):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
         """Deserialize a split coins command."""
-        coin = deserialize_argument(deserializer)
-        amounts_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        coin = deserialize_command_argument(deserializer)
+        amounts_vector = BcsVector.deserialize(deserializer, deserialize_command_argument)
         amounts = amounts_vector.elements
         return cls(coin, amounts)
 
@@ -199,8 +199,8 @@ class MergeCoinsCommand(TransactionCommand):
     Merges multiple coins of the same type into a destination coin.
     The source coins are destroyed and their balances added to the destination.
     """
-    destination: AnyArgument
-    sources: List[AnyArgument]
+    destination: CommandArgument
+    sources: List[CommandArgument]
     
     def __post_init__(self):
         """Validate merge parameters."""
@@ -219,8 +219,8 @@ class MergeCoinsCommand(TransactionCommand):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
         """Deserialize a merge coins command."""
-        destination = deserialize_argument(deserializer)
-        sources_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        destination = deserialize_command_argument(deserializer)
+        sources_vector = BcsVector.deserialize(deserializer, deserialize_command_argument)
         sources = sources_vector.elements
         return cls(destination, sources)
 
@@ -294,7 +294,7 @@ class UpgradeCommand(TransactionCommand):
     modules: List[bytes]
     dependencies: List[str]
     package: str
-    ticket: AnyArgument
+    ticket: CommandArgument
     
     def __post_init__(self):
         """Validate upgrade parameters."""
@@ -347,7 +347,7 @@ class UpgradeCommand(TransactionCommand):
         
         # Read package and ticket
         package = ObjectID.deserialize(deserializer).value
-        ticket = deserialize_argument(deserializer)
+        ticket = deserialize_command_argument(deserializer)
         
         return cls(modules, dependencies, package, ticket)
 
@@ -361,7 +361,7 @@ class MakeMoveVecCommand(TransactionCommand):
     when constructing vectors in Move, as the type system cannot infer empty vectors.
     """
     type_argument: Optional[str]
-    elements: List[AnyArgument]
+    elements: List[CommandArgument]
     
     def get_command_tag(self) -> int:
         return 6  # MakeMoveVec variant
@@ -392,7 +392,7 @@ class MakeMoveVecCommand(TransactionCommand):
         type_argument = type_option.value.value if type_option.value is not None else None
         
         # Read elements
-        elements_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        elements_vector = BcsVector.deserialize(deserializer, deserialize_command_argument)
         elements = elements_vector.elements
         
         return cls(type_argument, elements)
