@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from ..bcs import serialize, Serializer, Serializable
 from .arguments import (
     AnyArgument, PureArgument, ObjectArgument, ResultArgument, 
-    GasCoinArgument, InputArgument, pure, object_arg, gas_coin
+    NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
     AnyCommand, MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
@@ -33,22 +33,31 @@ class ResultHandle:
     command_index: int
     result_count: int = 1
     
-    def __getitem__(self, index: int) -> ResultArgument:
+    def __getitem__(self, index: int) -> Union[ResultArgument, NestedResultArgument]:
         """Get a specific result by index."""
         if index < 0 or index >= self.result_count:
             raise IndexError(f"Result index {index} out of bounds (0-{self.result_count-1})")
-        return ResultArgument(self.command_index, index)
+        
+        # For single result commands accessing index 0, use simple ResultArgument
+        if self.result_count == 1 and index == 0:
+            return ResultArgument(self.command_index)
+        
+        # For multiple results or explicit indexing, use NestedResultArgument
+        return NestedResultArgument(self.command_index, index)
     
     def __iter__(self):
         """Iterate over all results."""
         for i in range(self.result_count):
-            yield ResultArgument(self.command_index, i)
+            if self.result_count == 1 and i == 0:
+                yield ResultArgument(self.command_index)
+            else:
+                yield NestedResultArgument(self.command_index, i)
     
     def single(self) -> ResultArgument:
         """Get the single result (convenience for commands that return one value)."""
         if self.result_count != 1:
             raise ValueError(f"Command has {self.result_count} results, expected 1")
-        return ResultArgument(self.command_index, 0)
+        return ResultArgument(self.command_index)
 
 
 class TransactionBuilder(Serializable):
@@ -380,7 +389,7 @@ class TransactionBuilder(Serializable):
     
     def _convert_argument(self, arg: Any) -> AnyArgument:
         """Convert a value to the appropriate argument type."""
-        if isinstance(arg, (PureArgument, ObjectArgument, ResultArgument, GasCoinArgument, InputArgument)):
+        if isinstance(arg, (PureArgument, ObjectArgument, ResultArgument, NestedResultArgument, GasCoinArgument, InputArgument)):
             return arg
         elif isinstance(arg, str) and arg.startswith("0x"):
             # Treat as address - could be object ID or address
