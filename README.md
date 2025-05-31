@@ -216,31 +216,47 @@ data = bytes_value(b"hello world")
 
 ### Cryptographic Operations
 ```python
-from sui_py import SignatureScheme, create_private_key, Ed25519PrivateKey, Signature
+from sui_py import SignatureScheme, create_private_key, Ed25519PrivateKey, Secp256k1PrivateKey, Signature
 
-# Generate a new Ed25519 key pair
-private_key = create_private_key(SignatureScheme.ED25519)
-public_key = private_key.public_key()
+# Generate Ed25519 key pair
+ed25519_private_key = create_private_key(SignatureScheme.ED25519)
+ed25519_public_key = ed25519_private_key.public_key()
 
-# Get the Sui address
-address = public_key.to_sui_address()
-print(f"Address: {address}")
+# Generate Secp256k1 key pair
+secp256k1_private_key = create_private_key(SignatureScheme.SECP256K1)
+secp256k1_public_key = secp256k1_private_key.public_key()
 
-# Sign a message
+# Get Sui addresses for both schemes
+ed25519_address = ed25519_public_key.to_sui_address()
+secp256k1_address = secp256k1_public_key.to_sui_address()
+print(f"Ed25519 Address: {ed25519_address}")
+print(f"Secp256k1 Address: {secp256k1_address}")
+
+# Sign a message with both schemes
 message = b"Hello, Sui blockchain!"
-signature = private_key.sign(message)
 
-# Verify the signature
-is_valid = public_key.verify(message, signature)
-print(f"Signature valid: {is_valid}")
+ed25519_signature = ed25519_private_key.sign(message)
+secp256k1_signature = secp256k1_private_key.sign(message)
 
-# Export/import keys
-private_key_hex = private_key.to_hex()
-imported_key = Ed25519PrivateKey.from_hex(private_key_hex)
+# Verify signatures
+ed25519_valid = ed25519_public_key.verify(message, ed25519_signature)
+secp256k1_valid = secp256k1_public_key.verify(message, secp256k1_signature)
+print(f"Ed25519 signature valid: {ed25519_valid}")
+print(f"Secp256k1 signature valid: {secp256k1_valid}")
 
-# Serialize signatures
-signature_hex = signature.to_hex()
-reconstructed_sig = Signature.from_hex(signature_hex, SignatureScheme.ED25519)
+# Export/import keys for both schemes
+ed25519_hex = ed25519_private_key.to_hex()
+secp256k1_hex = secp256k1_private_key.to_hex()
+
+imported_ed25519 = Ed25519PrivateKey.from_hex(ed25519_hex)
+imported_secp256k1 = Secp256k1PrivateKey.from_hex(secp256k1_hex)
+
+# Serialize signatures with scheme information
+ed25519_sig_hex = ed25519_signature.to_hex()
+secp256k1_sig_hex = secp256k1_signature.to_hex()
+
+reconstructed_ed25519 = Signature.from_hex(ed25519_sig_hex, SignatureScheme.ED25519)
+reconstructed_secp256k1 = Signature.from_hex(secp256k1_sig_hex, SignatureScheme.SECP256K1)
 ```
 
 ### Transaction Building
