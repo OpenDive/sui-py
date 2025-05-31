@@ -6,6 +6,8 @@ including Move calls, object transfers, coin operations, and package management.
 All commands implement the BCS protocol for proper serialization.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Union, Optional
@@ -13,6 +15,7 @@ from typing_extensions import Self
 
 from ..bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector
 from ..types import ObjectID
+from ..types.type_tag import parse_type_tag, deserialize_type_tag
 from .arguments import AnyArgument, deserialize_argument
 from .utils import BcsString, parse_move_call_target, validate_object_id
 
@@ -70,8 +73,9 @@ class MoveCallCommand(TransactionCommand):
         BcsString(self.module).serialize(serializer)
         BcsString(self.function).serialize(serializer)
         
-        # Serialize type arguments
-        type_args_vector = bcs_vector([BcsString(arg) for arg in self.type_arguments])
+        # Serialize type arguments using TypeTag system
+        type_tags = [parse_type_tag(arg) for arg in self.type_arguments]
+        type_args_vector = bcs_vector(type_tags)
         type_args_vector.serialize(serializer)
         
         # Serialize arguments
@@ -85,9 +89,10 @@ class MoveCallCommand(TransactionCommand):
         module = BcsString.deserialize(deserializer).value
         function = BcsString.deserialize(deserializer).value
         
-        # Read type arguments
-        type_args_vector = BcsVector.deserialize(deserializer, BcsString.deserialize)
-        type_arguments = [arg.value for arg in type_args_vector.elements]
+        # Read type arguments using TypeTag system
+        type_args_vector = BcsVector.deserialize(deserializer, deserialize_type_tag)
+        # Convert TypeTag objects back to strings for now
+        type_arguments = [str(tag) for tag in type_args_vector.elements]
         
         # Read arguments
         args_vector = BcsVector.deserialize(deserializer, deserialize_argument)

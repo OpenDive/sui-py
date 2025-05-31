@@ -28,6 +28,11 @@ from .governance import (
     # Type aliases
     Stake, ValidatorSummary, SystemState
 )
+from .type_tag import (
+    TypeTag, BoolTypeTag, U8TypeTag, U16TypeTag, U32TypeTag, U64TypeTag, U128TypeTag, U256TypeTag,
+    AddressTypeTag, SignerTypeTag, VectorTypeTag, StructTypeTag,
+    parse_type_tag, deserialize_type_tag
+)
 
 __all__ = [
     # Base types
@@ -85,4 +90,20 @@ __all__ = [
     "Stake",
     "ValidatorSummary",
     "SystemState",
+    
+    # TypeTag system
+    "TypeTag",
+    "BoolTypeTag",
+    "U8TypeTag", 
+    "U16TypeTag",
+    "U32TypeTag",
+    "U64TypeTag",
+    "U128TypeTag",
+    "U256TypeTag",
+    "AddressTypeTag",
+    "SignerTypeTag",
+    "VectorTypeTag",
+    "StructTypeTag",
+    "parse_type_tag",
+    "deserialize_type_tag",
 ] 

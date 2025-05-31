@@ -78,24 +78,17 @@ class TestTransactionSerialization:
             owner=SuiAddress(self.sui_address_hex)
         )
         
-        # Build PTB manually to match C# test structure exactly
-        # C# creates: CallArg[] inputs = new CallArg[] { new CallArg(CallArgumentType.Object, new ObjectCallArg(...)) }
-        object_input = ObjectArgument(payment_ref)
+        # Use TransactionBuilder to correctly handle argument indexing
+        tx = TransactionBuilder()
+        payment_obj = tx.object(self.object_id, self.version, self.digest)
         
-        # C# creates: MoveCall with specific structure
-        move_call = MoveCallCommand(
-            package=self.sui_address_hex,  # Use string directly
-            module="display", 
-            function="new",
-            arguments=[object_input],
+        move_result = tx.move_call(
+            target=f"{self.sui_address_hex}::display::new",
+            arguments=[payment_obj],
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"]
         )
         
-        # Create PTB with exact structure from C# test
-        ptb = ProgrammableTransactionBlock(
-            inputs=[object_input],
-            commands=[move_call]
-        )
+        ptb = tx.build()
         
         # Create complete transaction data structure
         transaction_kind = TransactionKind(
