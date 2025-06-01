@@ -199,7 +199,7 @@ class GasCoinArgument(TransactionArgument):
     """
     
     def get_argument_tag(self) -> int:
-        return 4  # GasCoin variant
+        return 0  # GasCoin variant (matches C# TransactionArgumentKind.GasCoin)
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Gas coin has no additional data."""
@@ -234,7 +234,7 @@ class InputArgument(TransactionArgument):
     
     def get_argument_tag(self) -> int:
         # Based on C# SDK TransactionArgumentKind.Input
-        return 1  # Input variant
+        return 1  # Input variant (matches C# SDK)
     
     def serialize_argument_data(self, serializer: Serializer) -> None:
         """Serialize the input index."""
@@ -247,28 +247,78 @@ class InputArgument(TransactionArgument):
         return cls(input_index)
 
 
-# Type alias for all argument types
-AnyArgument = Union[
-    PureArgument,
-    ObjectArgument, 
-    ResultArgument,
-    NestedResultArgument,
-    GasCoinArgument,
-    InputArgument
-]
+# Type aliases for different contexts
+PTBInputArgument = Union[PureArgument, ObjectArgument]  # Only these go in PTB inputs
+CommandArgument = Union[GasCoinArgument, InputArgument, ResultArgument, NestedResultArgument]  # These go in commands
+AnyArgument = Union[PTBInputArgument, CommandArgument]  # All argument types
+
+
+def deserialize_ptb_input(deserializer: Deserializer) -> PTBInputArgument:
+    """
+    Deserialize a PTB input argument (CallArg in C# SDK).
+    
+    PTB Input tag values:
+    - Pure = 0
+    - Object = 1
+    
+    Args:
+        deserializer: The BCS deserializer
+        
+    Returns:
+        The deserialized PTB input argument
+        
+    Raises:
+        ValueError: If the argument tag is unknown
+    """
+    tag = deserializer.read_u8()
+    
+    if tag == 0:
+        return PureArgument.deserialize(deserializer)
+    elif tag == 1:
+        return ObjectArgument.deserialize(deserializer)
+    else:
+        raise ValueError(f"Unknown PTB input argument tag: {tag}")
+
+
+def deserialize_command_argument(deserializer: Deserializer) -> CommandArgument:
+    """
+    Deserialize a command argument (TransactionArgument in C# SDK).
+    
+    Command Argument tag values:
+    - GasCoin = 0
+    - Input = 1
+    - Result = 2
+    - NestedResult = 3
+    
+    Args:
+        deserializer: The BCS deserializer
+        
+    Returns:
+        The deserialized command argument
+        
+    Raises:
+        ValueError: If the argument tag is unknown
+    """
+    tag = deserializer.read_u8()
+    
+    if tag == 0:
+        return GasCoinArgument.deserialize(deserializer)
+    elif tag == 1:
+        return InputArgument.deserialize(deserializer)
+    elif tag == 2:
+        return ResultArgument.deserialize(deserializer)
+    elif tag == 3:
+        return NestedResultArgument.deserialize(deserializer)
+    else:
+        raise ValueError(f"Unknown command argument tag: {tag}")
 
 
 def deserialize_argument(deserializer: Deserializer) -> AnyArgument:
     """
-    Deserialize any transaction argument based on its tag.
+    Legacy deserialize function - tries to determine context automatically.
     
-    Tag values from C# SDK:
-    - GasCoin = 0
-    - Input = 1
-    - Result = 2  
-    - NestedResult = 3
-    - Pure = 0 (for PTB inputs only)
-    - Object = 1 (for PTB inputs only)
+    DEPRECATED: Use deserialize_ptb_input() or deserialize_command_argument() instead
+    for better type safety and clarity.
     
     Args:
         deserializer: The BCS deserializer
@@ -291,8 +341,6 @@ def deserialize_argument(deserializer: Deserializer) -> AnyArgument:
         return NestedResultArgument.deserialize(deserializer)
     elif tag == 4:
         return GasCoinArgument.deserialize(deserializer)
-    elif tag == 5:
-        return InputArgument.deserialize(deserializer)
     else:
         raise ValueError(f"Unknown argument tag: {tag}")
 
