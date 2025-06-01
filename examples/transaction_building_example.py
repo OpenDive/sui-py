@@ -5,19 +5,19 @@ This example demonstrates:
 - Basic transaction building with fluent API
 - Various command types (Move calls, transfers, coin operations)
 - Result chaining between commands
-- Package publishing and upgrading
 - BCS serialization and integration
 """
 
 import asyncio
-from sui_py import (
+from sui_py.transactions import (
     TransactionBuilder, 
-    SuiClient,
     ProgrammableTransactionBlock,
-    PureArgument,
     ObjectArgument,
+    PureArgument,
     ResultArgument
 )
+from sui_py.types import ObjectRef
+from sui_py.bcs import Deserializer
 
 
 def basic_transaction_example():
@@ -31,8 +31,12 @@ def basic_transaction_example():
     amount = tx.pure(1000, "u64")
     recipient = tx.pure("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
     
-    # Add object references
-    coin = tx.object("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
+    # Add object references (with version and digest as required)
+    coin = tx.object(
+        "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        version=1,
+        digest="test_digest"
+    )
     
     # Perform coin split
     new_coins = tx.split_coins(coin, [amount])
@@ -40,12 +44,12 @@ def basic_transaction_example():
     # Transfer the new coin
     tx.transfer_objects([new_coins[0]], recipient)
     
-    # Build the PTB
+    # Build the PTB and serialize
     ptb = tx.build()
     print(f"PTB Summary:\n{ptb}")
     
     # Serialize to BCS bytes
-    bcs_bytes = tx.to_bytes()
+    bcs_bytes = ptb.to_bytes()
     print(f"BCS bytes length: {len(bcs_bytes)}")
     print()
 
@@ -58,30 +62,47 @@ def complex_defi_transaction_example():
     
     # Input parameters
     user_address = tx.pure("0x1111111111111111111111111111111111111111111111111111111111111111")
-    pool_address = tx.object("0x2222222222222222222222222222222222222222222222222222222222222222")
+    pool_address = tx.object(
+        "0x2222222222222222222222222222222222222222222222222222222222222222",
+        version=10,
+        digest="pool_digest"
+    )
     liquidity_amount = tx.pure(5000, "u64")
     
-    # Split gas coin for operations
-    gas = tx.gas_coin()
-    operation_coins = tx.split_coins(gas, [1000, 2000, 3000])
+    # Create gas coin and split for operations
+    gas = tx.object(
+        "0x3333333333333333333333333333333333333333333333333333333333333333",
+        version=5,
+        digest="gas_digest"
+    )
+    operation_coins = tx.split_coins(gas, [
+        tx.pure(1000, "u64"), 
+        tx.pure(2000, "u64"), 
+        tx.pure(3000, "u64")
+    ])
     
     # Provide liquidity to pool
     liquidity_result = tx.move_call(
-        "0x0000000000000000000000000000000000000000000000000000000000000003::pool::add_liquidity",
+        target="0x0000000000000000000000000000000000000000000000000000000000000003::pool::add_liquidity",
         arguments=[pool_address, operation_coins[0], liquidity_amount],
-        type_arguments=["0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI", "0x0000000000000000000000000000000000000000000000000000000000000004::token::USDC"]
+        type_arguments=[
+            "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI", 
+            "0x0000000000000000000000000000000000000000000000000000000000000004::token::USDC"
+        ]
     )
     
     # Stake LP tokens
-    lp_tokens = liquidity_result.single()
+    lp_tokens = liquidity_result[0]  # Get first result
     stake_result = tx.move_call(
-        "0x0000000000000000000000000000000000000000000000000000000000000005::staking::stake",
+        target="0x0000000000000000000000000000000000000000000000000000000000000005::staking::stake",
         arguments=[lp_tokens, operation_coins[1]],
-        type_arguments=["0x0000000000000000000000000000000000000000000000000000000000000003::pool::LP<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI, 0x0000000000000000000000000000000000000000000000000000000000000004::token::USDC>"]
+        type_arguments=[
+            "0x0000000000000000000000000000000000000000000000000000000000000003::pool::LP<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI, 0x0000000000000000000000000000000000000000000000000000000000000004::token::USDC>"
+        ]
     )
     
     # Transfer stake receipt to user
-    stake_receipt = stake_result.single()
+    stake_receipt = stake_result[0]
     tx.transfer_objects([stake_receipt], user_address)
     
     # Return remaining coins to user
@@ -95,58 +116,36 @@ def complex_defi_transaction_example():
     print()
 
 
-def package_management_example():
-    """Package publishing and upgrading example."""
-    print("=== Package Management Example ===")
+def move_call_example():
+    """Demonstrate Move call patterns."""
+    print("=== Move Call Example ===")
     
     tx = TransactionBuilder()
     
-    # Mock compiled module bytecode
-    module1_bytecode = b"module_bytecode_1"
-    module2_bytecode = b"module_bytecode_2"
-    modules = [module1_bytecode, module2_bytecode]
-    
-    # Dependencies (framework packages)
-    dependencies = ["0x0000000000000000000000000000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000000000000000000000000000002"]
-    
-    # Publish package
-    upgrade_cap = tx.publish(modules, dependencies)
-    
-    # Transfer upgrade capability to deployer
-    deployer = tx.pure("0xdeployer1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-    tx.transfer_objects([upgrade_cap.single()], deployer)
-    
-    print(f"Package publish transaction:\n{tx}")
-    
-    # Build separate upgrade transaction
-    upgrade_tx = TransactionBuilder()
-    
-    # New module bytecode for upgrade
-    upgraded_modules = [b"upgraded_module_1", b"upgraded_module_2"]
-    package_id = "0xabc1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc"
-    upgrade_cap_obj = upgrade_tx.object("0xdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
-    
-    # Create upgrade ticket
-    ticket = upgrade_tx.move_call(
-        "0x0000000000000000000000000000000000000000000000000000000000000002::package::authorize_upgrade",
-        arguments=[upgrade_cap_obj, upgrade_tx.pure(1, "u8"), upgrade_tx.pure(b"digest", "vector<u8>")]
+    # Create object inputs matching test patterns
+    payment_obj = tx.object(
+        "0x1000000000000000000000000000000000000000000000000000000000000000",
+        version=10000,
+        digest="1Bhh3pU9gLXZhoVxkr5wyg9sX6"
     )
     
-    # Perform upgrade
-    receipt = upgrade_tx.upgrade(
-        modules=upgraded_modules,
-        dependencies=dependencies,
-        package=package_id,
-        ticket=ticket.single()
+    # Call a Move function (pattern from working tests)
+    move_result = tx.move_call(
+        target="0x0000000000000000000000000000000000000000000000000000000000000002::display::new",
+        arguments=[payment_obj],
+        type_arguments=["0x0000000000000000000000000000000000000000000000000000000000000002::capy::Capy"]
     )
     
-    # Commit upgrade
-    upgrade_tx.move_call(
-        "0x0000000000000000000000000000000000000000000000000000000000000002::package::commit_upgrade",
-        arguments=[upgrade_cap_obj, receipt.single()]
-    )
+    # Transfer the result
+    recipient = tx.pure("0x0000000000000000000000000000000000000000000000000000000000000BAD")
+    tx.transfer_objects([move_result[0]], recipient)
     
-    print(f"Package upgrade transaction:\n{upgrade_tx}")
+    # Build and serialize
+    ptb = tx.build()
+    serialized = ptb.to_bytes()
+    
+    print(f"Move call transaction built successfully")
+    print(f"Serialized to {len(serialized)} bytes")
     print()
 
 
@@ -156,36 +155,44 @@ def result_chaining_example():
     
     tx = TransactionBuilder()
     
-    # Create multiple coins from gas
-    gas = tx.gas_coin()
-    amounts = [tx.pure(amount) for amount in [100, 200, 300, 400, 500]]
+    # Create gas coin
+    gas = tx.object(
+        "0x4444444444444444444444444444444444444444444444444444444444444444",
+        version=1,
+        digest="gas_chain_digest"
+    )
+    
+    # Create multiple amounts as pure arguments
+    amounts = [
+        tx.pure(100, "u64"), 
+        tx.pure(200, "u64"), 
+        tx.pure(300, "u64"), 
+        tx.pure(400, "u64"), 
+        tx.pure(500, "u64")
+    ]
+    
+    # Split coins
     coins = tx.split_coins(gas, amounts)
     
     # Merge some coins together
     tx.merge_coins(coins[0], [coins[1], coins[2]])
     
-    # Create a vector of remaining coins
-    coin_vector = tx.make_move_vec(
-        [coins[3], coins[4]], 
-        "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
-    )
-    
-    # Use the vector in a batch transfer
+    # Create recipients
     recipients = [
         tx.pure("0xrecipient1111111111111111111111111111111111111111111111111111111111"),
         tx.pure("0xrecipient2222222222222222222222222222222222222222222222222222222222")
     ]
     
-    # Call batch transfer function with the coin vector
-    tx.move_call(
-        "0x0000000000000000000000000000000000000000000000000000000000000006::batch::transfer_coins",
-        arguments=[coin_vector.single(), recipients[0], recipients[1]]
-    )
-    
-    # Transfer the merged coin to first recipient
+    # Transfer coins to recipients
     tx.transfer_objects([coins[0]], recipients[0])
+    tx.transfer_objects([coins[3]], recipients[1])
+    tx.transfer_objects([coins[4]], recipients[0])
     
     print(f"Result chaining transaction:\n{tx}")
+    
+    # Build and serialize
+    ptb = tx.build()
+    print(f"Successfully built PTB with {len(ptb.commands)} commands")
     print()
 
 
@@ -196,7 +203,11 @@ def serialization_round_trip_example():
     # Create original transaction
     tx = TransactionBuilder()
     
-    coin = tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+    coin = tx.object(
+        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        version=1,
+        digest="round_trip_digest"
+    )
     amount = tx.pure(1000, "u64")
     recipient = tx.pure("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
     
@@ -211,7 +222,6 @@ def serialization_round_trip_example():
     print(f"Serialized length: {len(bcs_bytes)} bytes")
     
     # Deserialize back
-    from sui_py.bcs import Deserializer
     deserializer = Deserializer(bcs_bytes)
     restored_ptb = ProgrammableTransactionBlock.deserialize(deserializer)
     
@@ -232,68 +242,75 @@ def error_handling_example():
     try:
         # Invalid Move call target
         tx = TransactionBuilder()
-        tx.move_call("invalid_target")  # Should fail
+        tx.move_call(target="invalid_target")  # Should fail
     except ValueError as e:
         print(f"Caught expected error: {e}")
     
     try:
-        # Invalid object ID
+        # Invalid object ID format
         tx = TransactionBuilder()
         tx.object("invalid_object_id")  # Should fail
     except ValueError as e:
         print(f"Caught expected error: {e}")
     
     try:
-        # Empty transaction
+        # Empty transaction validation
         tx = TransactionBuilder()
-        tx.build()  # Should fail - no commands
+        ptb = tx.build()  # May succeed but be empty
+        if len(ptb.commands) == 0:
+            print("Empty transaction created (no commands)")
     except ValueError as e:
         print(f"Caught expected error: {e}")
     
     try:
-        # Invalid result reference
+        # Test invalid pure argument type
         tx = TransactionBuilder()
-        coin = tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
-        # This would create a forward reference, caught during PTB validation
-        invalid_result = ResultArgument(999, 0)  # Non-existent command
-        tx.transfer_objects([coin], invalid_result)
+        tx.pure("not_a_valid_type", "invalid_type")  # Should fail during serialization
         ptb = tx.build()
-        ptb.validate()  # Should fail
-    except (ValueError, IndexError) as e:
+        ptb.to_bytes()  # Failure might occur here
+    except (ValueError, TypeError) as e:
         print(f"Caught expected error: {e}")
     
     print("Error handling working correctly!")
     print()
 
 
-async def integration_example():
-    """Example showing integration with SuiClient (mock)."""
+def integration_example():
+    """Example showing transaction preparation for signing."""
     print("=== Integration Example ===")
     
     # Build transaction
     tx = TransactionBuilder()
     
-    # Simulate real object IDs and operations
-    coin = tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+    # Use realistic object IDs and operations
+    coin = tx.object(
+        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        version=100,
+        digest="integration_digest"
+    )
     amount = tx.pure(1000000, "u64")  # 1 SUI (in MIST)
     recipient = tx.pure("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
     
     new_coins = tx.split_coins(coin, [amount])
     tx.transfer_objects([new_coins[0]], recipient)
     
-    # Get transaction bytes for signing
-    ptb_bytes = tx.to_bytes()
+    # Build and get transaction bytes for signing
+    ptb = tx.build()
+    ptb_bytes = ptb.to_bytes()
     
     print(f"Transaction ready for signing:")
     print(f"  PTB byte length: {len(ptb_bytes)}")
+    print(f"  Number of commands: {len(ptb.commands)}")
+    print(f"  Number of inputs: {len(ptb.inputs)}")
     print(f"  Transaction summary:\n{tx}")
     
     # In a real scenario, you would:
-    # 1. Sign the transaction with a private key
-    # 2. Submit to SuiClient for execution
-    # 3. Wait for transaction confirmation
+    # 1. Create complete TransactionData with gas, sender, etc.
+    # 2. Sign the transaction with a private key
+    # 3. Submit to Sui network for execution
+    # 4. Wait for transaction confirmation
     
-    print("Ready for signing and execution!")
+    print("Ready for integration with signing and network submission!")
     print()
 
 
@@ -305,13 +322,11 @@ def main():
     
     basic_transaction_example()
     complex_defi_transaction_example()
-    package_management_example()
+    move_call_example()
     result_chaining_example()
     serialization_round_trip_example()
     error_handling_example()
-    
-    # Run async example
-    asyncio.run(integration_example())
+    integration_example()
     
     print("All examples completed successfully!")
 

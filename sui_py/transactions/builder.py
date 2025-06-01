@@ -10,13 +10,13 @@ from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer, Serializable
-from .arguments import (
-    AnyArgument, PureArgument, ObjectArgument, ResultArgument, 
+from .transaction_argument import (
+    PTBInputArgument, CommandArgument, PureArgument, ObjectArgument, ResultArgument, 
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
-    AnyCommand, MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
-    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand
+    AnyCommand, MoveCall, TransferObjects, SplitCoins,
+    MergeCoins, Publish, Upgrade, MakeMoveVec
 )
 from .ptb import ProgrammableTransactionBlock
 from .utils import encode_pure_value, parse_move_call_target, validate_object_id
@@ -82,7 +82,7 @@ class TransactionBuilder(Serializable):
     
     def __init__(self):
         """Initialize a new transaction builder."""
-        self._inputs: List[AnyArgument] = []
+        self._inputs: List[PTBInputArgument] = []  # Only PureArgument and ObjectArgument
         self._commands: List[AnyCommand] = []
         self._input_cache: Dict[Any, int] = {}  # For deduplication
         self._gas_coin_used = False
@@ -171,7 +171,7 @@ class TransactionBuilder(Serializable):
             converted_args.append(self._convert_argument(arg))
         
         # Create and add command
-        command = MoveCallCommand.from_target(
+        command = MoveCall.from_target(
             target=target,
             arguments=converted_args,
             type_arguments=type_arguments or []
@@ -198,7 +198,7 @@ class TransactionBuilder(Serializable):
         converted_objects = [self._convert_argument(obj) for obj in objects]
         converted_recipient = self._convert_argument(recipient)
         
-        command = TransferObjectsCommand(
+        command = TransferObjects(
             objects=converted_objects,
             recipient=converted_recipient
         )
@@ -213,17 +213,18 @@ class TransactionBuilder(Serializable):
             amounts: List of amounts to split into
             
         Returns:
-            A ResultHandle for the new coins
+            A ResultHandle for accessing the new coins
             
         Example:
             coin = tx.object("0x123...")
-            amounts = [tx.pure(1000), tx.pure(2000)]
+            amounts = tx.pure([1000, 2000], "vector<u64>")
             new_coins = tx.split_coins(coin, amounts)
+            first_coin = new_coins[0]
         """
         converted_coin = self._convert_argument(coin)
         converted_amounts = [self._convert_argument(amount) for amount in amounts]
         
-        command = SplitCoinsCommand(
+        command = SplitCoins(
             coin=converted_coin,
             amounts=converted_amounts
         )
@@ -231,7 +232,7 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Split returns as many coins as amounts
+        # Split coins returns as many results as amounts
         return ResultHandle(command_index, result_count=len(amounts))
     
     def merge_coins(self, destination: Any, sources: List[Any]) -> None:
@@ -243,14 +244,15 @@ class TransactionBuilder(Serializable):
             sources: List of source coins to merge
             
         Example:
-            main_coin = tx.object("0x123...")
-            other_coins = [tx.object("0xabc..."), tx.object("0xdef...")]
-            tx.merge_coins(main_coin, other_coins)
+            coin1 = tx.object("0x123...")
+            coin2 = tx.object("0x456...")
+            coin3 = tx.object("0x789...")
+            tx.merge_coins(coin1, [coin2, coin3])
         """
         converted_destination = self._convert_argument(destination)
         converted_sources = [self._convert_argument(source) for source in sources]
         
-        command = MergeCoinsCommand(
+        command = MergeCoins(
             destination=converted_destination,
             sources=converted_sources
         )
@@ -261,17 +263,18 @@ class TransactionBuilder(Serializable):
         Add a package publish command.
         
         Args:
-            modules: List of compiled module bytecode
-            dependencies: List of dependency package IDs
+            modules: List of compiled Move module bytecode
+            dependencies: List of package dependencies
             
         Returns:
-            A ResultHandle for the UpgradeCap
+            A ResultHandle for the published package
             
         Example:
-            upgrade_cap = tx.publish(compiled_modules, ["0x1", "0x2"])
-            tx.transfer_objects([upgrade_cap.single()], deployer_address)
+            with open("module.mv", "rb") as f:
+                bytecode = f.read()
+            package = tx.publish([bytecode], dependencies=["0x1", "0x2"])
         """
-        command = PublishCommand(
+        command = Publish(
             modules=modules,
             dependencies=dependencies or []
         )
@@ -279,7 +282,7 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Publish returns an UpgradeCap
+        # Publish typically returns a package object
         return ResultHandle(command_index, result_count=1)
     
     def upgrade(self, 
@@ -291,20 +294,23 @@ class TransactionBuilder(Serializable):
         Add a package upgrade command.
         
         Args:
-            modules: List of compiled module bytecode
-            dependencies: List of dependency package IDs
-            package: Package ID to upgrade
-            ticket: Upgrade authorization ticket
+            modules: List of new compiled Move module bytecode
+            dependencies: List of package dependencies
+            package: The package ID being upgraded
+            ticket: The upgrade capability ticket
             
         Returns:
-            A ResultHandle for the UpgradeReceipt
+            A ResultHandle for the upgraded package
             
         Example:
-            receipt = tx.upgrade(new_modules, deps, package_id, ticket)
+            with open("new_module.mv", "rb") as f:
+                bytecode = f.read()
+            ticket = tx.object("0x123...")  # UpgradeCap
+            upgraded = tx.upgrade([bytecode], ["0x1"], "0xabc...", ticket)
         """
         converted_ticket = self._convert_argument(ticket)
         
-        command = UpgradeCommand(
+        command = Upgrade(
             modules=modules,
             dependencies=dependencies,
             package=package,
@@ -314,7 +320,7 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Upgrade returns an UpgradeReceipt
+        # Upgrade returns the receipt
         return ResultHandle(command_index, result_count=1)
     
     def make_move_vec(self, elements: List[Any], type_argument: Optional[str] = None) -> ResultHandle:
@@ -322,26 +328,26 @@ class TransactionBuilder(Serializable):
         Add a make Move vector command.
         
         Args:
-            elements: List of elements for the vector
-            type_argument: Optional type argument for the vector
+            elements: List of elements to include in vector
+            type_argument: Optional type parameter for the vector
             
         Returns:
             A ResultHandle for the created vector
             
         Example:
-            vector = tx.make_move_vec([obj1, obj2], "0x2::coin::Coin<0x2::sui::SUI>")
+            coins = [tx.object("0x123..."), tx.object("0x456...")]
+            vector = tx.make_move_vec(coins, "0x2::coin::Coin<0x2::sui::SUI>")
         """
         converted_elements = [self._convert_argument(element) for element in elements]
         
-        command = MakeMoveVecCommand(
-            type_argument=type_argument,
-            elements=converted_elements
+        command = MakeMoveVec(
+            elements=converted_elements,
+            type_argument=type_argument
         )
         
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Make vector returns a single vector
         return ResultHandle(command_index, result_count=1)
     
     def build(self) -> ProgrammableTransactionBlock:
@@ -387,20 +393,21 @@ class TransactionBuilder(Serializable):
         ptb = self.build()
         return serialize(ptb)
     
-    def _convert_argument(self, arg: Any) -> AnyArgument:
-        """Convert a value to the appropriate argument type."""
-        if isinstance(arg, (PureArgument, ObjectArgument, ResultArgument, NestedResultArgument, GasCoinArgument, InputArgument)):
-            return arg
+    def _convert_argument(self, arg: Any) -> CommandArgument:
+        """Convert a value to the appropriate command argument type."""
+        if isinstance(arg, (ResultArgument, NestedResultArgument, GasCoinArgument, InputArgument)):
+            return arg  # Already a command argument
         elif isinstance(arg, str) and arg.startswith("0x"):
-            # Treat as address - could be object ID or address
+            # Treat as address - create pure argument and return input reference
             return self.pure(arg)
         elif isinstance(arg, (int, bool, bytes)):
+            # Create pure argument and return input reference
             return self.pure(arg)
         else:
             # Try to convert as pure value
             return self.pure(arg)
     
-    def _add_input(self, arg: AnyArgument) -> int:
+    def _add_input(self, arg: PTBInputArgument) -> int:
         """Add input with deduplication and return the index."""
         # Simple deduplication based on content
         # For more sophisticated deduplication, we could use content hashing
