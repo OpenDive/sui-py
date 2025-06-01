@@ -5,7 +5,6 @@ This module implements the proper architectural separation:
 - Pure data structures (MoveCall, TransferObjects, etc.) that can serialize independently
 - Command envelope that wraps data structures with enum tags for PTB context
 - New argument system with CallArg for PTB inputs and TransactionArgument for command args
-- Backward compatibility aliases for existing code
 """
 
 from .move_call import MoveCall
@@ -23,21 +22,8 @@ from ..transaction_argument import (
     ResultTransactionArgument, NestedResultTransactionArgument
 )
 
-# Import old command classes from the original commands.py temporarily
-# TODO: Eventually phase these out in favor of the new pure data structures
-from ..commands_old import (
-    TransactionCommand,
-    MoveCallCommand, 
-    TransferObjectsCommand,
-    SplitCoinsCommand,
-    MergeCoinsCommand,
-    PublishCommand,
-    UpgradeCommand,
-    MakeMoveVecCommand,
-)
-
 __all__ = [
-    # New architecture - pure data structures
+    # Pure data structures
     "MoveCall",
     "TransferObjects",
     "SplitCoins",
@@ -46,38 +32,14 @@ __all__ = [
     "Upgrade",
     "MakeMoveVec",
     
-    # New architecture - command envelope
+    # Command envelope
     "Command", 
     "CommandKind",
     "AnyCommand",
     
-    # New argument system
+    # Argument system
     "CallArg", "CallArgKind", "PureCallArg", "ObjectCallArg", "InputCallArg",
     "TransactionArgument", "TransactionArgumentKind",
     "GasCoinTransactionArgument", "InputTransactionArgument", 
     "ResultTransactionArgument", "NestedResultTransactionArgument",
-    
-    # Backward compatibility - old command classes
-    "TransactionCommand",
-    "MoveCallCommand", 
-    "TransferObjectsCommand",
-    "SplitCoinsCommand", 
-    "MergeCoinsCommand",
-    "PublishCommand",
-    "UpgradeCommand", 
-    "MakeMoveVecCommand",
-]
-
-# Backward compatibility aliases
-MoveCallCommand = MoveCall
-TransferObjectsCommand = TransferObjects
-SplitCoinsCommand = SplitCoins
-MergeCoinsCommand = MergeCoins
-PublishCommand = Publish
-UpgradeCommand = Upgrade
-MakeMoveVecCommand = MakeMoveVec
-
-# Backward compatibility function - delegates to Command.deserialize
-def deserialize_command(deserializer):
-    """Backward compatibility function - use Command.deserialize() instead."""
-    return Command.deserialize(deserializer) 
+] 

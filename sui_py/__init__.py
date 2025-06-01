@@ -53,8 +53,8 @@ from .transactions import (
     # Arguments
     PureArgument, ObjectArgument, ResultArgument, GasCoinArgument,
     # Commands
-    MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
-    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand
+    MoveCall, TransferObjects, SplitCoins,
+    MergeCoins, Publish, Upgrade, MakeMoveVec, Command
 )
 
 __all__ = [
@@ -128,11 +128,12 @@ __all__ = [
     "ObjectArgument", 
     "ResultArgument",
     "GasCoinArgument",
-    "MoveCallCommand",
-    "TransferObjectsCommand",
-    "SplitCoinsCommand",
-    "MergeCoinsCommand",
-    "PublishCommand",
-    "UpgradeCommand", 
-    "MakeMoveVecCommand",
+    "MoveCall",
+    "TransferObjects",
+    "SplitCoins",
+    "MergeCoins",
+    "Publish",
+    "Upgrade", 
+    "MakeMoveVec",
+    "Command",
 ] 

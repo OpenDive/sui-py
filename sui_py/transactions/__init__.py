@@ -48,8 +48,8 @@ from .arguments import (
     GasCoinArgument, NestedResultArgument, pure, object_arg, gas_coin
 )
 from .commands import (
-    AnyCommand, MoveCallCommand, TransferObjectsCommand, SplitCoinsCommand,
-    MergeCoinsCommand, PublishCommand, UpgradeCommand, MakeMoveVecCommand
+    AnyCommand, MoveCall, TransferObjects, SplitCoins,
+    MergeCoins, Publish, Upgrade, MakeMoveVec, Command
 )
 from .data import (
     TransactionData, TransactionDataV1, TransactionType,
@@ -83,11 +83,12 @@ __all__ = [
     
     # Commands
     "AnyCommand",
-    "MoveCallCommand",
-    "TransferObjectsCommand", 
-    "SplitCoinsCommand",
-    "MergeCoinsCommand",
-    "PublishCommand",
-    "UpgradeCommand",
-    "MakeMoveVecCommand",
+    "MoveCall",
+    "TransferObjects", 
+    "SplitCoins",
+    "MergeCoins",
+    "Publish",
+    "Upgrade",
+    "MakeMoveVec",
+    "Command",
 ] 
