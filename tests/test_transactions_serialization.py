@@ -142,7 +142,7 @@ class TestTransactionsSerialization:
             module="display",
             function="new",
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"],  # String format, not StructTypeTag
-            arguments=[InputArgument(0), InputArgument(1), NestedResultArgument(2, 0)]  # Proper TransactionArgument objects
+            arguments=[InputArgument(0), InputArgument(1), ResultArgument(2)]  # Fixed: ResultArgument not NestedResultArgument
         )
         
         # Create Command directly
