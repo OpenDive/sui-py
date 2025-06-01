@@ -18,11 +18,11 @@ from sui_py.bcs import serialize
 from sui_py.types import SuiAddress, ObjectRef
 from sui_py.transactions import (
     ProgrammableTransactionBlock, 
-    MoveCallCommand,
+    MoveCall,
     ObjectArgument,
     PureArgument,
     ResultArgument,
-    TransferObjectsCommand,
+    TransferObjects,
     # Complete transaction data structures
     TransactionData,
     TransactionDataV1, 
@@ -31,6 +31,9 @@ from sui_py.transactions import (
     TransactionExpiration,
     TransactionKind,
     TransactionKindType
+)
+from sui_py.transactions.commands import (
+    Command, TransactionArgument
 )
 
 
@@ -156,7 +159,7 @@ class TestTransactionSerialization:
         # C# creates: MoveCall with 3 arguments: Input(0), Input(1), Result(2)
         from sui_py.transactions.arguments import InputArgument, ResultArgument
         
-        move_call = MoveCallCommand(
+        move_call = MoveCall(
             package=self.sui_address_hex,
             module="display", 
             function="new",
