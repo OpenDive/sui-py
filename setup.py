@@ -3,14 +3,26 @@ Setup configuration for SuiPy SDK.
 """
 
 from setuptools import setup, find_packages
+import os
 
 # Read README for long description
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-# Read requirements
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+# Read requirements with fallback
+requirements = []
+requirements_file = "requirements.txt"
+if os.path.exists(requirements_file):
+    with open(requirements_file, "r", encoding="utf-8") as fh:
+        requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+else:
+    # Fallback requirements if file not found during build
+    requirements = [
+        "httpx>=0.25.0",
+        "typing-extensions>=4.0.0",
+        "pynacl>=1.5.0",
+        "ecdsa>=0.18.0"
+    ]
 
 setup(
     name="sui-py",
