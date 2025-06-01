@@ -44,11 +44,13 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ✅ **BCS Serialization** - Complete Binary Canonical Serialization implementation
 
-✅ **Transaction Building & Serialization** - Complete Programmable Transaction Block (PTB) system with C# Unity SDK compatibility
+✅ **Transaction Building & Serialization** - **VERIFIED C# Unity SDK Compatibility** - Complete Programmable Transaction Block (PTB) system with byte-for-byte serialization matching
+
+✅ **Low-Level Transaction Compatibility** - Direct transaction construction and serialization works without RPC requirements
 
 ✅ **Governance Read API** - Complete validator and staking information queries
 
-🚧 **In Development** - Write APIs for transaction execution
+🚧 **In Development** - High-level TransactionBuilder APIs (require RPC infrastructure for object resolution and gas estimation)
 
 ### Async-First Design
 
@@ -66,8 +68,16 @@ async with SuiClient("mainnet") as client:
 
 ### ✅ Implemented
 
-- **Transaction Building & Serialization System**: Complete Programmable Transaction Block (PTB) implementation with C# Unity SDK compatibility
-  - **TransactionBuilder**: Fluent API for building complex transactions
+- **Transaction Building & Serialization System**: Complete Programmable Transaction Block (PTB) implementation with **VERIFIED C# Unity SDK byte-for-byte compatibility**
+  - **Low-Level Direct Construction** ✅: Direct object creation and serialization (no RPC required)
+    - Manual PTB, Command, and TransactionData construction
+    - Complete BCS serialization with exact C# Unity SDK byte matching
+    - ObjectArgument, InputArgument, ResultArgument with proper variant encoding
+    - MoveCall with correct package/module/function format
+    - TransactionExpiration, GasData, and full transaction structure support
+  - **High-Level TransactionBuilder** 🚧: Fluent API for building transactions (requires RPC for full functionality)
+    - Basic object/pure argument creation works without RPC
+    - Advanced features need RPC: object resolution, gas estimation, live state access
   - **Type-Safe Arguments**: PureArgument, ObjectArgument, ResultArgument, InputArgument with automatic conversion
   - **Full Command Support**: Move calls, object transfers, coin operations, package management
   - **Result Chaining**: Use outputs from one command as inputs to another
@@ -289,13 +299,75 @@ reconstructed_secp256k1 = Signature.from_hex(secp256k1_sig_hex, SignatureScheme.
 ```
 
 ### Transaction Building
+
+**Low-Level Direct Construction** (No RPC Required):
+```python
+from sui_py.transactions import (
+    TransactionData, TransactionDataV1, TransactionType,
+    TransactionKind, TransactionKindType, GasData, TransactionExpiration,
+    ProgrammableTransactionBlock, Command, MoveCall,
+    ObjectArgument, InputArgument, ResultArgument
+)
+from sui_py.types import ObjectRef, SuiAddress
+from sui_py.bcs import serialize
+
+# Create transaction data directly (equivalent to C# Unity SDK)
+object_ref = ObjectRef(
+    object_id="0x1000000000000000000000000000000000000000000000000000000000000000",
+    version=10000,
+    digest="1Bhh3pU9gLXZhoVxkr5wyg9sX6"
+)
+
+# Build PTB directly
+object_arg = ObjectArgument(object_ref)
+move_call = MoveCall(
+    package="0x0000000000000000000000000000000000000000000000000000000000000002",
+    module="display",
+    function="new",
+    type_arguments=["0x0000000000000000000000000000000000000000000000000000000000000002::capy::Capy"],
+    arguments=[InputArgument(0)]
+)
+
+ptb = ProgrammableTransactionBlock(
+    inputs=[object_arg],
+    commands=[Command(move_call)]
+)
+
+# Create complete transaction
+transaction_kind = TransactionKind(
+    kind_type=TransactionKindType.ProgrammableTransaction,
+    programmable_transaction=ptb
+)
+
+gas_data = GasData(
+    budget="1000000",
+    price="1",
+    payment=[object_ref],
+    owner=SuiAddress.from_hex("0x0000000000000000000000000000000000000000000000000000000000000002")
+)
+
+transaction_data = TransactionData(
+    transaction_type=TransactionType.V1,
+    transaction_data_v1=TransactionDataV1(
+        transaction_kind=transaction_kind,
+        sender=SuiAddress.from_hex("0x0000000000000000000000000000000000000000000000000000000000000BAD"),
+        gas_data=gas_data,
+        expiration=TransactionExpiration()
+    )
+)
+
+# Serialize for signing (byte-for-byte compatible with C# Unity SDK)
+tx_bytes = serialize(transaction_data)
+```
+
+**High-Level TransactionBuilder** (Some features require RPC):
 ```python
 from sui_py import TransactionBuilder, ProgrammableTransactionBlock
 
 # Build a simple coin transfer transaction
 tx = TransactionBuilder()
 
-# Add inputs
+# Add inputs (basic functionality works without RPC)
 coin = tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 amount = tx.pure(1000, "u64")
 recipient = tx.pure("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
@@ -311,18 +383,18 @@ print(f"Transaction summary: {ptb}")
 # Get bytes for signing
 tx_bytes = tx.to_bytes()
 
-# Complex DeFi operations with result chaining
+# Complex DeFi operations with result chaining (requires RPC for gas/object resolution)
 defi_tx = TransactionBuilder()
 
-# Get gas coin and split for operations
-gas = defi_tx.gas_coin()
-operation_coins = defi_tx.split_coins(gas, [1000, 2000])
+# Note: Advanced operations like gas_coin(), object resolution, etc. require RPC client
+# gas = defi_tx.gas_coin()  # ❌ Requires RPC
+# operation_coins = defi_tx.split_coins(gas, [1000, 2000])
 
-# Call a Move function with the split coins
+# For now, use direct object references
 pool = defi_tx.object("0x...")
 liquidity_result = defi_tx.move_call(
     "0x123::pool::add_liquidity",
-    arguments=[pool, operation_coins[0]],
+    arguments=[pool],
     type_arguments=["0x2::sui::SUI", "0x456::token::USDC"]
 )
 
@@ -330,7 +402,7 @@ liquidity_result = defi_tx.move_call(
 lp_tokens = liquidity_result.single()
 defi_tx.transfer_objects([lp_tokens], recipient)
 
-# Serialize the complex transaction
+# Serialize the transaction
 complex_ptb = defi_tx.build()
 complex_bytes = defi_tx.to_bytes()
 ```
@@ -437,6 +509,27 @@ python -m pytest --cov=sui_py
 
 #### Run Specific Test Suites
 
+**Low-Level Transaction Serialization Tests** (C# Unity SDK Compatibility):
+```bash
+# Direct transaction construction and serialization (no RPC required)
+python -m pytest tests/test_transactions_serialization.py -v
+
+# Test C# Unity SDK byte-for-byte compatibility
+python -m pytest tests/test_transactions_serialization.py::TestTransactionsSerialization::test_transaction_data_serialization_single_input -v
+python -m pytest tests/test_transactions_serialization.py::TestTransactionsSerialization::test_transaction_data_serialization_multiple_args -v
+```
+
+**High-Level TransactionBuilder Tests** (Currently Skipped - Requires RPC):
+```bash
+# TransactionBuilder tests (skipped until RPC infrastructure is implemented)
+python -m pytest tests/test_transactions.py -v
+
+# These tests are marked as skipped because they require:
+# - RPC client for object resolution
+# - Gas estimation via network calls  
+# - Live blockchain state access
+```
+
 **BCS Tests** (Binary Canonical Serialization):
 ```bash
 # Run BCS tests specifically
@@ -469,14 +562,16 @@ python -m pytest tests/test_api.py -v
 The test suite covers:
 
 - **Transaction Building & Serialization System**:
-  - ✅ **C# Unity SDK Compatibility**: Byte-for-byte serialization matching with official C# test cases
-  - ✅ **Argument Type System**: InputArgument, ResultArgument, ObjectArgument, PureArgument validation
+  - ✅ **VERIFIED C# Unity SDK Compatibility**: Byte-for-byte serialization matching with official C# test cases in `tests/test_transactions_serialization.py`
+  - ✅ **Low-Level Direct Construction**: Manual PTB, Command, and TransactionData creation without RPC requirements
+  - ✅ **Argument Type System**: ObjectArgument (variant 0 - ImmOrOwned), InputArgument, ResultArgument validation
   - ✅ **Complex Transaction Patterns**: Multi-input/multi-command transaction structures
   - ✅ **Result Chaining**: Command outputs used as inputs in subsequent commands  
   - ✅ **PTB Structure Validation**: Input deduplication and command dependency checking
   - ✅ **BCS Round-trip Testing**: Complete serialization/deserialization verification
-  - ✅ **Cross-Language Verification**: Python serialization exactly matches C# Unity SDK output
+  - ✅ **Cross-Language Verification**: Python serialization exactly matches C# Unity SDK output (304 & 310 bytes)
   - ✅ **Error Handling**: Input validation and transaction building error cases
+  - 🚧 **High-Level TransactionBuilder**: Tests skipped pending RPC infrastructure implementation
 
 - **BCS Implementation** (37 test cases - enhanced from C# Sui Unity SDK):
   - ✅ **Comprehensive Primitive Types**: All integer types (U8, U16, U32, U64, U128, U256) with exact value testing
@@ -589,10 +684,15 @@ async with SuiClient("testnet") as client:
 
 See the `examples/` directory for complete usage examples:
 - `transaction_building_example.py` - Comprehensive transaction building with PTBs, result chaining, and BCS serialization
-- `coin_query_example.py` - Comprehensive Coin Query API usage
-- `extended_api_example.py` - Extended API usage with objects, events, and transactions
-- `crypto_example.py` - Cryptographic operations and key management
-- `bcs_example.py` - BCS serialization and deserialization examples
+- `coin_query_example.py` - Comprehensive Coin Query API usage *(requires RPC)*
+- `extended_api_example.py` - Extended API usage with objects, events, and transactions *(requires RPC)*
+- `crypto_example.py` - Cryptographic operations and key management *(no RPC required)*
+- `bcs_example.py` - BCS serialization and deserialization examples *(no RPC required)*
+
+**Note**: Examples marked with *(requires RPC)* need a live Sui network connection. Examples marked with *(no RPC required)* work offline with hardcoded values.
+
+For **low-level transaction construction** examples that work without RPC, see the test file:
+- `tests/test_transactions_serialization.py` - Direct transaction construction with C# Unity SDK compatibility
 
 ## Contributing
 
