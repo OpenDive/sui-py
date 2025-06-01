@@ -51,17 +51,10 @@ class TestTransactionsSerialization:
         # Create MoveCall directly
         # Equivalent to: new MoveCall(target, type_arguments, arguments)
         move_call = MoveCall(
-            package=SuiAddress.from_hex(self.sui_address_hex),
+            package=self.sui_address_hex,  # String, not SuiAddress object
             module="display",
             function="new",
-            type_arguments=[
-                StructTypeTag(
-                    package=SuiAddress.from_hex(self.sui_address_hex),
-                    module="capy", 
-                    name="Capy",
-                    type_params=[]
-                )
-            ],
+            type_arguments=[f"{self.sui_address_hex}::capy::Capy"],  # String format, not StructTypeTag
             arguments=[0]  # Single argument referencing input 0
         )
         
@@ -145,17 +138,10 @@ class TestTransactionsSerialization:
         # Create MoveCall with multiple arguments
         # Equivalent to C# test with 3 arguments: Input(0), Input(1), Result(2)
         move_call = MoveCall(
-            package=SuiAddress.from_hex(self.sui_address_hex),
+            package=self.sui_address_hex,  # String, not SuiAddress object
             module="display",
             function="new",
-            type_arguments=[
-                StructTypeTag(
-                    package=SuiAddress.from_hex(self.sui_address_hex),
-                    module="capy",
-                    name="Capy", 
-                    type_params=[]
-                )
-            ],
+            type_arguments=[f"{self.sui_address_hex}::capy::Capy"],  # String format, not StructTypeTag
             arguments=[0, 1, (2, 0)]  # Input(0), Input(1), Result(2, 0)
         )
         
