@@ -11,6 +11,7 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
   - [🚧 Coming Soon](#-coming-soon)
 - [Installation](#installation)
   - [From PyPI (Coming Soon)](#from-pypi-coming-soon)
+  - [From Git Repository](#from-git-repository)
   - [Development Setup](#development-setup)
 - [Quick Start](#quick-start)
   - [BCS Serialization](#bcs-serialization)
@@ -156,20 +157,40 @@ async with SuiClient("mainnet") as client:
 pip install sui-py
 ```
 
+### From Git Repository
+
+You can install the latest version directly from the git repository:
+
+```bash
+# Install latest from main branch
+pip install git+https://github.com/OpenDive/sui-py.git
+
+# Install specific version/tag
+pip install git+https://github.com/OpenDive/sui-py.git@v0.1.0
+
+# Install specific branch  
+pip install git+https://github.com/OpenDive/sui-py.git@feature-branch
+
+# Install with development dependencies
+pip install "git+https://github.com/OpenDive/sui-py.git[dev]"
+```
+
+**Note**: Replace `OpenDive` with the actual GitHub organization/username where the repository is hosted.
+
 ### Development Setup
 
 #### Option 1: Automated Setup (Recommended)
 
 **Using Python script** (cross-platform):
 ```bash
-git clone https://github.com/your-org/sui-py
+git clone https://github.com/OpenDive/sui-py
 cd sui-py
 python scripts/setup_dev.py
 ```
 
 **Using Bash script** (macOS/Linux):
 ```bash
-git clone https://github.com/your-org/sui-py
+git clone https://github.com/OpenDive/sui-py
 cd sui-py
 ./scripts/setup_dev.sh
 ```
@@ -178,7 +199,7 @@ cd sui-py
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/your-org/sui-py
+git clone https://github.com/OpenDive/sui-py
 cd sui-py
 ```
 
