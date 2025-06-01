@@ -10,7 +10,7 @@ from typing import List, Optional
 from typing_extensions import Self
 
 from ...bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector, BcsOption, bcs_some, bcs_none
-from ..transaction_argument import TransactionArgument, deserialize_transaction_argument
+from ..arguments import TransactionArgument, deserialize_transaction_argument
 from ..utils import BcsString
 
 

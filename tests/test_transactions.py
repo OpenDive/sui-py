@@ -35,7 +35,7 @@ from sui_py.transactions import (
 from sui_py.transactions.commands import (
     Command, TransactionArgument, MoveCall
 )
-from sui_py.transactions.transaction_argument import (
+from sui_py.transactions.arguments import (
     InputArgument
 )
 

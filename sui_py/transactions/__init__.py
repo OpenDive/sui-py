@@ -43,7 +43,7 @@ Examples:
 
 from .builder import TransactionBuilder
 from .ptb import ProgrammableTransactionBlock
-from .transaction_argument import (
+from .arguments import (
     AnyArgument, PureArgument, ObjectArgument, ResultArgument, 
     GasCoinArgument, NestedResultArgument, pure, object_arg, gas_coin
 )

@@ -10,7 +10,7 @@ from typing import List, Union
 from typing_extensions import Self
 
 from ..bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector, serialize
-from .transaction_argument import PTBInputArgument, deserialize_ptb_input, ResultArgument, NestedResultArgument
+from .arguments import PTBInputArgument, deserialize_ptb_input, ResultArgument, NestedResultArgument
 from .commands import AnyCommand, Command
 
 

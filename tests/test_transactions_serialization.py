@@ -9,7 +9,7 @@ to test serialization correctness at the low level, just like the C# tests.
 import pytest
 from sui_py.transactions.ptb import ProgrammableTransactionBlock
 from sui_py.transactions.commands import MoveCall, Command
-from sui_py.transactions.transaction_argument import ObjectArgument, InputArgument, ResultArgument, NestedResultArgument
+from sui_py.transactions.arguments import ObjectArgument, InputArgument, ResultArgument, NestedResultArgument
 from sui_py.transactions.data import (
     TransactionDataV1, TransactionData, TransactionKind, TransactionKindType,
     GasData, TransactionExpiration, TransactionType

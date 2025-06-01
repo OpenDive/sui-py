@@ -15,10 +15,13 @@ from .publish import Publish
 from .upgrade import Upgrade
 from .make_move_vec import MakeMoveVec
 from .command import Command, CommandKind, AnyCommand
-from ..transaction_argument import (
-    TransactionArgument, TransactionArgumentKind,
-    GasCoinArgument, InputArgument, 
-    ResultArgument, NestedResultArgument
+from ..arguments import (
+    TransactionArgument,
+    deserialize_transaction_argument,
+    deserialize_ptb_input,
+    PTBInputArgument,
+    ResultArgument, 
+    NestedResultArgument
 )
 
 __all__ = [

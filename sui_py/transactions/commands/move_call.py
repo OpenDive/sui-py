@@ -12,7 +12,7 @@ from typing_extensions import Self
 from ...bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector
 from ...types import ObjectID
 from ...types.type_tag import parse_type_tag, deserialize_type_tag
-from ..transaction_argument import TransactionArgument, deserialize_transaction_argument
+from ..arguments import TransactionArgument, deserialize_transaction_argument
 from ..utils import BcsString, parse_move_call_target, validate_object_id
 
 

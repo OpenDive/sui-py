@@ -26,7 +26,7 @@ from sui_py.bcs import (
 from sui_py.transactions.utils import BcsString
 from sui_py.types import SuiAddress
 from sui_py.transactions.commands import MoveCall
-from sui_py.transactions.transaction_argument import TransactionArgument, GasCoinArgument, NestedResultArgument, InputArgument, ResultArgument
+from sui_py.transactions.arguments import TransactionArgument, GasCoinArgument, NestedResultArgument, InputArgument, ResultArgument
 
 
 class TestBCSCSharpEquivalent:
