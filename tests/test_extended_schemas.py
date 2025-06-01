@@ -295,7 +295,7 @@ class TestQueryFilters:
         filter_dict = EventFilter.by_module(package_id, module_name)
         
         expected = {
-            "MoveModule": {
+            "MoveEventModule": {
                 "package": package_id,
                 "module": module_name
             }
