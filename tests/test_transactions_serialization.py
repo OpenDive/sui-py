@@ -10,9 +10,10 @@ import pytest
 from sui_py.transactions.ptb import ProgrammableTransactionBlock
 from sui_py.transactions.commands import MoveCall, Command
 from sui_py.transactions.transaction_argument import ObjectArgument
-from sui_py.transactions.data import TransactionDataV1, TransactionData, TransactionKind
-from sui_py.transactions.gas import GasData
-from sui_py.transactions.expiration import TransactionExpiration
+from sui_py.transactions.data import (
+    TransactionDataV1, TransactionData, TransactionKind, TransactionKindType,
+    GasData, TransactionExpiration, TransactionType
+)
 from sui_py.types import ObjectRef, SuiAddress, StructTypeTag
 from sui_py.bcs import serialize
 
@@ -74,26 +75,32 @@ class TestTransactionsSerialization:
         )
         
         # Create TransactionKind
-        transaction_kind = TransactionKind(ptb)
+        transaction_kind = TransactionKind(
+            kind_type=TransactionKindType.ProgrammableTransaction,
+            programmable_transaction=ptb
+        )
         
         # Create GasData
         gas_data = GasData(
-            budget=1000000,
-            price=1,
+            budget="1000000",
+            price="1",
             payment=[object_ref],
             owner=SuiAddress.from_hex(self.sui_address_hex)
         )
         
         # Create TransactionDataV1 directly
         transaction_data_v1 = TransactionDataV1(
+            transaction_kind=transaction_kind,
             sender=SuiAddress.from_hex(self.test_address),
-            expiration=TransactionExpiration(),
             gas_data=gas_data,
-            transaction_kind=transaction_kind
+            expiration=TransactionExpiration()
         )
         
         # Create TransactionData
-        transaction_data = TransactionData(transaction_data_v1)
+        transaction_data = TransactionData(
+            transaction_type=TransactionType.V1,
+            transaction_data_v1=transaction_data_v1
+        )
         
         # Serialize and get bytes
         actual = serialize(transaction_data)
@@ -162,26 +169,32 @@ class TestTransactionsSerialization:
         )
         
         # Create TransactionKind
-        transaction_kind = TransactionKind(ptb)
+        transaction_kind = TransactionKind(
+            kind_type=TransactionKindType.ProgrammableTransaction,
+            programmable_transaction=ptb
+        )
         
         # Create GasData
         gas_data = GasData(
-            budget=1000000,
-            price=1,
+            budget="1000000",
+            price="1",
             payment=[object_ref],
             owner=SuiAddress.from_hex(self.sui_address_hex)
         )
         
         # Create TransactionDataV1 directly
         transaction_data_v1 = TransactionDataV1(
+            transaction_kind=transaction_kind,
             sender=SuiAddress.from_hex(self.test_address),
-            expiration=TransactionExpiration(),
             gas_data=gas_data,
-            transaction_kind=transaction_kind
+            expiration=TransactionExpiration()
         )
         
         # Create TransactionData
-        transaction_data = TransactionData(transaction_data_v1)
+        transaction_data = TransactionData(
+            transaction_type=TransactionType.V1,
+            transaction_data_v1=transaction_data_v1
+        )
         
         # Serialize and get bytes
         actual = serialize(transaction_data)
