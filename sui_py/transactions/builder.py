@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer, Serializable
 from .transaction_argument import (
-    PTBInputArgument, CommandArgument, PureArgument, ObjectArgument, ResultArgument, 
+    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, ResultArgument, 
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
@@ -393,7 +393,7 @@ class TransactionBuilder(Serializable):
         ptb = self.build()
         return serialize(ptb)
     
-    def _convert_argument(self, arg: Any) -> CommandArgument:
+    def _convert_argument(self, arg: Any) -> TransactionArgument:
         """Convert a value to the appropriate command argument type."""
         if isinstance(arg, (ResultArgument, NestedResultArgument, GasCoinArgument, InputArgument)):
             return arg  # Already a command argument

@@ -235,11 +235,11 @@ class NestedResultArgument(BcsSerializable):
         return cls(command_index, result_index)
 
 
-# Type alias for command arguments (what goes in command fields)
-CommandArgument = Union[GasCoinArgument, InputArgument, ResultArgument, NestedResultArgument]
+# Type for transaction arguments used in commands
+TransactionArgument = Union[GasCoinArgument, InputArgument, ResultArgument, NestedResultArgument]
 
 # Type alias for all argument types
-AnyArgument = Union[PTBInputArgument, CommandArgument]
+AnyArgument = Union[PTBInputArgument, TransactionArgument]
 
 
 # =============================================================================
@@ -273,7 +273,7 @@ def deserialize_ptb_input(deserializer: Deserializer) -> PTBInputArgument:
         raise ValueError(f"Unknown PTB input argument tag: {tag}")
 
 
-def deserialize_command_argument(deserializer: Deserializer) -> CommandArgument:
+def deserialize_command_argument(deserializer: Deserializer) -> TransactionArgument:
     """
     Deserialize a command argument (TransactionArgument in C# SDK).
     
@@ -335,18 +335,6 @@ def gas_coin() -> GasCoinArgument:
     return GasCoinArgument()
 
 
-# =============================================================================
-# Legacy Compatibility (can be removed later)
-# =============================================================================
-
-# For backward compatibility during migration
-TransactionArgument = CommandArgument
-GasCoinTransactionArgument = GasCoinArgument
-InputTransactionArgument = InputArgument  
-ResultTransactionArgument = ResultArgument
-NestedResultTransactionArgument = NestedResultArgument
-
-
-def deserialize_transaction_argument(deserializer: Deserializer) -> CommandArgument:
-    """Legacy function - use deserialize_command_argument instead."""
-    return deserialize_command_argument(deserializer) 
+def deserialize_transaction_argument(deserializer: Deserializer) -> TransactionArgument:
+    """Deserialize a transaction argument."""
+    return deserialize_command_argument(deserializer)
