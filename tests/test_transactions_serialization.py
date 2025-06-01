@@ -9,7 +9,7 @@ to test serialization correctness at the low level, just like the C# tests.
 import pytest
 from sui_py.transactions.ptb import ProgrammableTransactionBlock
 from sui_py.transactions.commands import MoveCall, Command
-from sui_py.transactions.transaction_argument import ObjectArgument
+from sui_py.transactions.transaction_argument import ObjectArgument, InputArgument, ResultArgument, NestedResultArgument
 from sui_py.transactions.data import (
     TransactionDataV1, TransactionData, TransactionKind, TransactionKindType,
     GasData, TransactionExpiration, TransactionType
@@ -55,7 +55,7 @@ class TestTransactionsSerialization:
             module="display",
             function="new",
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"],  # String format, not StructTypeTag
-            arguments=[0]  # Single argument referencing input 0
+            arguments=[InputArgument(0)]  # Proper TransactionArgument object referencing input 0
         )
         
         # Create Command directly
@@ -142,7 +142,7 @@ class TestTransactionsSerialization:
             module="display",
             function="new",
             type_arguments=[f"{self.sui_address_hex}::capy::Capy"],  # String format, not StructTypeTag
-            arguments=[0, 1, (2, 0)]  # Input(0), Input(1), Result(2, 0)
+            arguments=[InputArgument(0), InputArgument(1), NestedResultArgument(2, 0)]  # Proper TransactionArgument objects
         )
         
         # Create Command directly
