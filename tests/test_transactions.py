@@ -33,7 +33,10 @@ from sui_py.transactions import (
     TransactionKindType
 )
 from sui_py.transactions.commands import (
-    Command, TransactionArgument
+    Command, TransactionArgument, MoveCall
+)
+from sui_py.transactions.transaction_argument import (
+    InputArgument
 )
 
 
@@ -157,7 +160,6 @@ class TestTransactionSerialization:
         object_input = ObjectArgument(payment_ref)
         
         # C# creates: MoveCall with 3 arguments: Input(0), Input(1), Result(2)
-        from sui_py.transactions.arguments import InputArgument, ResultArgument
         
         move_call = MoveCall(
             package=self.sui_address_hex,
@@ -696,7 +698,6 @@ class TestTransactionSerialization:
         """Debug test to check exact ObjectArgument serialization."""
         print("\n=== SIMPLE ARGUMENT SERIALIZATION ===")
         
-        from sui_py.transactions.arguments import ObjectArgument
         from sui_py.types import ObjectRef
         
         # Create the exact object ref from C# test
@@ -729,8 +730,7 @@ class TestTransactionSerialization:
         """Debug test to check exact MoveCallCommand serialization."""
         print("\n=== SIMPLE COMMAND SERIALIZATION ===")
         
-        from sui_py.transactions.commands import MoveCallCommand
-        from sui_py.transactions.arguments import ObjectArgument
+        from sui_py.transactions.commands import MoveCall
         from sui_py.types import ObjectRef
         
         # Create the exact object ref from C# test
@@ -743,8 +743,8 @@ class TestTransactionSerialization:
         # Create ObjectArgument
         obj_arg = ObjectArgument(payment_ref)
         
-        # Create MoveCallCommand
-        move_call = MoveCallCommand(
+        # Create MoveCall
+        move_call = MoveCall(
             package=self.sui_address_hex,
             module="display", 
             function="new",
@@ -754,15 +754,15 @@ class TestTransactionSerialization:
         
         # Serialize just the command
         cmd_bytes = serialize(move_call)
-        print(f"MoveCallCommand serialized: {cmd_bytes.hex()}")
-        print(f"MoveCallCommand length: {len(cmd_bytes)} bytes")
+        print(f"MoveCall serialized: {cmd_bytes.hex()}")
+        print(f"MoveCall length: {len(cmd_bytes)} bytes")
         
         # First byte should be the command type (0 for MoveCall)
         if len(cmd_bytes) > 0:
             first_byte = cmd_bytes[0]
             print(f"First byte (should be 0 for MoveCall): {first_byte}")
             if first_byte == 0:
-                print("✓ Correct MoveCallCommand type tag")
+                print("✓ Correct MoveCall type tag")
             else:
                 print(f"❌ Wrong command type tag, expected 0, got {first_byte}")
         
