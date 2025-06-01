@@ -1,10 +1,10 @@
 """
-Transaction commands module with separated data structures and command envelopes.
+Transaction commands module with clean architecture.
 
 This module implements the proper architectural separation:
 - Pure data structures (MoveCall, TransferObjects, etc.) that can serialize independently
 - Command envelope that wraps data structures with enum tags for PTB context
-- New argument system with CallArg for PTB inputs and TransactionArgument for command args
+- Clean argument system from transaction_argument module
 """
 
 from .move_call import MoveCall
@@ -15,19 +15,18 @@ from .publish import Publish
 from .upgrade import Upgrade
 from .make_move_vec import MakeMoveVec
 from .command import Command, CommandKind, AnyCommand
-from ..call_arg import CallArg, CallArgKind, PureCallArg, ObjectCallArg, InputCallArg
 from ..transaction_argument import (
     TransactionArgument, TransactionArgumentKind,
-    GasCoinTransactionArgument, InputTransactionArgument, 
-    ResultTransactionArgument, NestedResultTransactionArgument
+    GasCoinArgument, InputArgument, 
+    ResultArgument, NestedResultArgument
 )
 
 __all__ = [
     # Pure data structures
     "MoveCall",
-    "TransferObjects",
+    "TransferObjects", 
     "SplitCoins",
-    "MergeCoins", 
+    "MergeCoins",
     "Publish",
     "Upgrade",
     "MakeMoveVec",
@@ -38,8 +37,7 @@ __all__ = [
     "AnyCommand",
     
     # Argument system
-    "CallArg", "CallArgKind", "PureCallArg", "ObjectCallArg", "InputCallArg",
     "TransactionArgument", "TransactionArgumentKind",
-    "GasCoinTransactionArgument", "InputTransactionArgument", 
-    "ResultTransactionArgument", "NestedResultTransactionArgument",
+    "GasCoinArgument", "InputArgument", 
+    "ResultArgument", "NestedResultArgument",
 ] 
