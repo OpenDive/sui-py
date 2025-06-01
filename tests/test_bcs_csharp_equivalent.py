@@ -26,7 +26,7 @@ from sui_py.bcs import (
 from sui_py.transactions.utils import BcsString
 from sui_py.types import SuiAddress
 from sui_py.transactions.commands import MoveCall
-from sui_py.transactions.transaction_argument import TransactionArgument
+from sui_py.transactions.transaction_argument import TransactionArgument, GasCoinArgument, NestedResultArgument, InputArgument, ResultArgument
 
 
 class TestBCSCSharpEquivalent:
@@ -347,10 +347,10 @@ class TestBCSCSharpEquivalent:
             function="new",
             type_arguments=[f"{capy}::capy::Capy"],
             arguments=[
-                TransactionArgument.gas_coin(),         # TransactionArgument(GasCoin, null)
-                TransactionArgument.nested_result(0, 1), # TransactionArgument(NestedResult, NestedResult(0, 1))
-                TransactionArgument.input(3),           # TransactionArgument(Input, TransactionBlockInput(3))
-                TransactionArgument.result(1),          # TransactionArgument(Result, 1)
+                GasCoinArgument(),                    # TransactionArgument(GasCoin, null)
+                NestedResultArgument(0, 1),          # TransactionArgument(NestedResult, NestedResult(0, 1))
+                InputArgument(3),                    # TransactionArgument(Input, TransactionBlockInput(3))
+                ResultArgument(1),                   # TransactionArgument(Result, 1)
             ]
         )
         
