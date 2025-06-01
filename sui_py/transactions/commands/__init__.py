@@ -9,6 +9,12 @@ This module implements the proper architectural separation:
 """
 
 from .move_call import MoveCall
+from .transfer_objects import TransferObjects
+from .split_coins import SplitCoins
+from .merge_coins import MergeCoins
+from .publish import Publish
+from .upgrade import Upgrade
+from .make_move_vec import MakeMoveVec
 from .command import Command, CommandKind, AnyCommand
 from ..call_arg import CallArg, CallArgKind, PureCallArg, ObjectCallArg, InputCallArg
 from ..transaction_argument import (
@@ -18,7 +24,7 @@ from ..transaction_argument import (
 )
 
 # Import old command classes from the original commands.py temporarily
-# TODO: Convert these to new architecture gradually
+# TODO: Eventually phase these out in favor of the new pure data structures
 from ..commands_old import (
     TransactionCommand,
     MoveCallCommand, 
@@ -33,6 +39,12 @@ from ..commands_old import (
 __all__ = [
     # New architecture - pure data structures
     "MoveCall",
+    "TransferObjects",
+    "SplitCoins",
+    "MergeCoins", 
+    "Publish",
+    "Upgrade",
+    "MakeMoveVec",
     
     # New architecture - command envelope
     "Command", 
@@ -58,6 +70,12 @@ __all__ = [
 
 # Backward compatibility aliases
 MoveCallCommand = MoveCall
+TransferObjectsCommand = TransferObjects
+SplitCoinsCommand = SplitCoins
+MergeCoinsCommand = MergeCoins
+PublishCommand = Publish
+UpgradeCommand = Upgrade
+MakeMoveVecCommand = MakeMoveVec
 
 # Backward compatibility function - delegates to Command.deserialize
 def deserialize_command(deserializer):
