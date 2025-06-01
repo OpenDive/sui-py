@@ -12,6 +12,12 @@ from typing_extensions import Self
 
 from ...bcs import BcsSerializable, Serializer, Deserializer
 from .move_call import MoveCall
+from .transfer_objects import TransferObjects
+from .split_coins import SplitCoins
+from .merge_coins import MergeCoins
+from .publish import Publish
+from .upgrade import Upgrade
+from .make_move_vec import MakeMoveVec
 
 
 class CommandKind(IntEnum):
@@ -29,23 +35,15 @@ class CommandKind(IntEnum):
     MakeMoveVec = 6
 
 
-# For now, we'll import the old command classes for other types
-# TODO: Convert these to pure data structures like MoveCall
-from ..commands_old import (
-    TransferObjectsCommand, SplitCoinsCommand, MergeCoinsCommand,
-    PublishCommand, UpgradeCommand, MakeMoveVecCommand
-)
-
-# Union type for all command data types
+# Union type for all command data types - now all pure data structures
 CommandData = Union[
-    MoveCall,  # New pure data structure
-    # Old command classes (temporary until converted)
-    TransferObjectsCommand,
-    SplitCoinsCommand, 
-    MergeCoinsCommand,
-    PublishCommand,
-    UpgradeCommand,
-    MakeMoveVecCommand
+    MoveCall,
+    TransferObjects,
+    SplitCoins, 
+    MergeCoins,
+    Publish,
+    Upgrade,
+    MakeMoveVec
 ]
 
 
@@ -64,24 +62,24 @@ class Command(BcsSerializable):
         if isinstance(self.data, MoveCall):
             serializer.write_u8(CommandKind.MoveCall)
             self.data.serialize(serializer)
-        elif isinstance(self.data, TransferObjectsCommand):
+        elif isinstance(self.data, TransferObjects):
             serializer.write_u8(CommandKind.TransferObjects)
-            self.data.serialize_command_data(serializer)
-        elif isinstance(self.data, SplitCoinsCommand):
+            self.data.serialize(serializer)
+        elif isinstance(self.data, SplitCoins):
             serializer.write_u8(CommandKind.SplitCoins)
-            self.data.serialize_command_data(serializer)
-        elif isinstance(self.data, MergeCoinsCommand):
+            self.data.serialize(serializer)
+        elif isinstance(self.data, MergeCoins):
             serializer.write_u8(CommandKind.MergeCoins)
-            self.data.serialize_command_data(serializer)
-        elif isinstance(self.data, PublishCommand):
+            self.data.serialize(serializer)
+        elif isinstance(self.data, Publish):
             serializer.write_u8(CommandKind.Publish)
-            self.data.serialize_command_data(serializer)
-        elif isinstance(self.data, UpgradeCommand):
+            self.data.serialize(serializer)
+        elif isinstance(self.data, Upgrade):
             serializer.write_u8(CommandKind.Upgrade)
-            self.data.serialize_command_data(serializer)
-        elif isinstance(self.data, MakeMoveVecCommand):
+            self.data.serialize(serializer)
+        elif isinstance(self.data, MakeMoveVec):
             serializer.write_u8(CommandKind.MakeMoveVec)
-            self.data.serialize_command_data(serializer)
+            self.data.serialize(serializer)
         else:
             raise ValueError(f"Unknown command type: {type(self.data)}")
     
@@ -93,17 +91,17 @@ class Command(BcsSerializable):
         if tag == CommandKind.MoveCall:
             data = MoveCall.deserialize(deserializer)
         elif tag == CommandKind.TransferObjects:
-            data = TransferObjectsCommand.deserialize(deserializer)
+            data = TransferObjects.deserialize(deserializer)
         elif tag == CommandKind.SplitCoins:
-            data = SplitCoinsCommand.deserialize(deserializer)
+            data = SplitCoins.deserialize(deserializer)
         elif tag == CommandKind.MergeCoins:
-            data = MergeCoinsCommand.deserialize(deserializer)
+            data = MergeCoins.deserialize(deserializer)
         elif tag == CommandKind.Publish:
-            data = PublishCommand.deserialize(deserializer)
+            data = Publish.deserialize(deserializer)
         elif tag == CommandKind.Upgrade:
-            data = UpgradeCommand.deserialize(deserializer)
+            data = Upgrade.deserialize(deserializer)
         elif tag == CommandKind.MakeMoveVec:
-            data = MakeMoveVecCommand.deserialize(deserializer)
+            data = MakeMoveVec.deserialize(deserializer)
         else:
             raise ValueError(f"Unknown command tag: {tag}")
         
@@ -125,31 +123,31 @@ class Command(BcsSerializable):
     @classmethod
     def transfer_objects(cls, objects: list, recipient) -> "Command":
         """Create a TransferObjects command."""
-        transfer = TransferObjectsCommand(objects=objects, recipient=recipient)
+        transfer = TransferObjects(objects=objects, recipient=recipient)
         return cls(data=transfer)
     
     @classmethod
     def split_coins(cls, coin, amounts: list) -> "Command":
         """Create a SplitCoins command."""
-        split = SplitCoinsCommand(coin=coin, amounts=amounts)
+        split = SplitCoins(coin=coin, amounts=amounts)
         return cls(data=split)
     
     @classmethod
     def merge_coins(cls, destination, sources: list) -> "Command":
         """Create a MergeCoins command."""
-        merge = MergeCoinsCommand(destination=destination, sources=sources)
+        merge = MergeCoins(destination=destination, sources=sources)
         return cls(data=merge)
     
     @classmethod
     def publish(cls, modules: list, dependencies: list) -> "Command":
         """Create a Publish command."""
-        publish = PublishCommand(modules=modules, dependencies=dependencies)
+        publish = Publish(modules=modules, dependencies=dependencies)
         return cls(data=publish)
     
     @classmethod
     def upgrade(cls, modules: list, dependencies: list, package: str, ticket) -> "Command":
         """Create an Upgrade command."""
-        upgrade = UpgradeCommand(
+        upgrade = Upgrade(
             modules=modules, 
             dependencies=dependencies,
             package=package,
@@ -160,7 +158,7 @@ class Command(BcsSerializable):
     @classmethod
     def make_move_vec(cls, type_argument: str = None, elements: list = None) -> "Command":
         """Create a MakeMoveVec command."""
-        make_vec = MakeMoveVecCommand(
+        make_vec = MakeMoveVec(
             type_argument=type_argument,
             elements=elements or []
         )
