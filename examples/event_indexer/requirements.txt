@@ -1,9 +1,6 @@
-"""
-Requirements for the SuiPy Event Indexer example.
-
-This example demonstrates how to build a real-time event indexer
-using the SuiPy SDK's typed Extended API schemas with Prisma Client Python.
-"""
+# Requirements for the SuiPy Event Indexer example.
+# This example demonstrates how to build a real-time event indexer
+# using the SuiPy SDK's typed Extended API schemas with Prisma Client Python.
 
 # Core dependencies
 prisma>=0.11.0
