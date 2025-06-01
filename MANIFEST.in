@@ -1,0 +1,20 @@
+# Include documentation
+recursive-include docs *.md
+
+# Include examples
+recursive-include examples *.py *.md *.txt
+
+# Include additional config files
+include requirements-dev.txt
+include .gitignore
+
+# Include license if you have one
+include LICENSE*
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *~
+global-exclude __pycache__
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co] 
