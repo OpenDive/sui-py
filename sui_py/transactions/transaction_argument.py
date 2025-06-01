@@ -76,7 +76,7 @@ class ObjectArgument(BcsSerializable):
         """Serialize as Object CallArg (tag 1 + object ref type + object ref)."""
         serializer.write_u8(1)  # Object variant
         # ObjectRefType.ImmOrOwned (0) vs ObjectRefType.Shared (1)
-        serializer.write_u8(0)  # ImmOrOwned for now
+        serializer.write_u8(0)  # Use variant 0 (ImmOrOwned) for regular objects
         self.object_ref.serialize(serializer)
     
     @classmethod

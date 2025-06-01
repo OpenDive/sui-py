@@ -111,14 +111,14 @@ class TransactionKind(Serializable):
 class TransactionDataV1(Serializable):
     """Transaction data V1 structure."""
     
-    sender: SuiAddress
-    expiration: TransactionExpiration  
-    gas_data: GasData
     transaction_kind: TransactionKind
+    sender: SuiAddress
+    gas_data: GasData
+    expiration: TransactionExpiration  
     
     def serialize(self, serializer: Serializer) -> None:
         """Serialize transaction data V1."""
-        # Match C# exact order: Transaction, Sender, GasData, Expiration
+        # Match TypeScript BCS exact order: kind, sender, gasData, expiration
         self.transaction_kind.serialize(serializer)
         self.sender.serialize(serializer)
         self.gas_data.serialize(serializer)
@@ -127,16 +127,16 @@ class TransactionDataV1(Serializable):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> 'TransactionDataV1':
         """Deserialize transaction data V1."""
-        sender = SuiAddress.deserialize(deserializer)
-        expiration = TransactionExpiration.deserialize(deserializer)
-        gas_data = GasData.deserialize(deserializer)
         transaction_kind = TransactionKind.deserialize(deserializer)
+        sender = SuiAddress.deserialize(deserializer)
+        gas_data = GasData.deserialize(deserializer)
+        expiration = TransactionExpiration.deserialize(deserializer)
         
         return cls(
+            transaction_kind=transaction_kind,
             sender=sender,
-            expiration=expiration, 
             gas_data=gas_data,
-            transaction_kind=transaction_kind
+            expiration=expiration
         )
 
 

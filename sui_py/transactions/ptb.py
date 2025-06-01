@@ -10,8 +10,8 @@ from typing import List, Union
 from typing_extensions import Self
 
 from ..bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector, serialize
-from .arguments import AnyArgument, deserialize_argument
-from .commands import AnyCommand, deserialize_command
+from .transaction_argument import PTBInputArgument, deserialize_ptb_input, ResultArgument, NestedResultArgument
+from .commands import AnyCommand, Command
 
 
 @dataclass
@@ -26,7 +26,7 @@ class ProgrammableTransactionBlock(BcsSerializable):
     The PTB is the core transaction format for Sui, allowing complex
     multi-step operations to be executed atomically with shared state.
     """
-    inputs: List[AnyArgument]
+    inputs: List[PTBInputArgument]  # Only PureArgument and ObjectArgument
     commands: List[AnyCommand]
     
     def serialize(self, serializer: Serializer) -> None:
@@ -66,11 +66,11 @@ class ProgrammableTransactionBlock(BcsSerializable):
             A new ProgrammableTransactionBlock instance
         """
         # Read inputs
-        inputs_vector = BcsVector.deserialize(deserializer, deserialize_argument)
+        inputs_vector = BcsVector.deserialize(deserializer, deserialize_ptb_input)
         inputs = inputs_vector.to_list()
         
         # Read commands
-        commands_vector = BcsVector.deserialize(deserializer, deserialize_command)
+        commands_vector = BcsVector.deserialize(deserializer, Command.deserialize)
         commands = commands_vector.to_list()
         
         return cls(inputs=inputs, commands=commands)
@@ -104,7 +104,7 @@ class ProgrammableTransactionBlock(BcsSerializable):
             raise IndexError(f"Command index {index} out of bounds (0-{len(self.commands)-1})")
         return self.commands[index]
     
-    def get_input(self, index: int) -> AnyArgument:
+    def get_input(self, index: int) -> PTBInputArgument:
         """
         Get an input by index.
         
@@ -138,7 +138,6 @@ class ProgrammableTransactionBlock(BcsSerializable):
     
     def _validate_result_references(self) -> None:
         """Validate that all result arguments reference valid commands."""
-        from .arguments import ResultArgument, NestedResultArgument
         
         # Check all arguments in all commands
         for cmd_idx, command in enumerate(self.commands):

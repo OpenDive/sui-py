@@ -38,7 +38,9 @@ class SuiAddress(BcsSerializable):
         # Remove 0x prefix and convert to bytes
         hex_data = self.value[2:]
         address_bytes = bytes.fromhex(hex_data)
-        serializer.write_bytes(address_bytes)
+        # Use FixedBytes to ensure no length prefix (raw 32 bytes like C# AccountAddress)
+        from ..bcs import FixedBytes
+        FixedBytes(address_bytes, 32).serialize(serializer)
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
@@ -56,6 +58,11 @@ class SuiAddress(BcsSerializable):
     @classmethod
     def from_str(cls, address: str) -> "SuiAddress":
         """Create a SuiAddress from a string."""
+        return cls(address)
+    
+    @classmethod
+    def from_hex(cls, address: str) -> "SuiAddress":
+        """Create a SuiAddress from a hex string (convenience method)."""
         return cls(address)
 
 
@@ -84,7 +91,9 @@ class ObjectID(BcsSerializable):
         # Remove 0x prefix and convert to bytes
         hex_data = self.value[2:]
         id_bytes = bytes.fromhex(hex_data)
-        serializer.write_bytes(id_bytes)
+        # Use FixedBytes to ensure no length prefix (raw 32 bytes like C# AccountAddress)
+        from ..bcs import FixedBytes
+        FixedBytes(id_bytes, 32).serialize(serializer)
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
@@ -134,8 +143,11 @@ class ObjectRef(BcsSerializable):
     
     def serialize(self, serializer: Serializer) -> None:
         """Serialize object reference."""
-        # Serialize object ID
-        ObjectID(self.object_id).serialize(serializer)
+        # Serialize object ID as raw 32 bytes (no length prefix)
+        hex_data = self.object_id[2:]  # Remove 0x prefix
+        object_id_bytes = bytes.fromhex(hex_data)
+        from ..bcs import FixedBytes
+        FixedBytes(object_id_bytes, 32).serialize(serializer)
         
         # Serialize version as u64
         serializer.write_u64(self.version)
