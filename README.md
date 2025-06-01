@@ -175,8 +175,6 @@ pip install git+https://github.com/OpenDive/sui-py.git@feature-branch
 pip install "git+https://github.com/OpenDive/sui-py.git[dev]"
 ```
 
-**Note**: Replace `OpenDive` with the actual GitHub organization/username where the repository is hosted.
-
 ### Development Setup
 
 #### Option 1: Automated Setup (Recommended)
