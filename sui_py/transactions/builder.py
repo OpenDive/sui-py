@@ -10,8 +10,8 @@ from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer, Serializable
-from .transaction_argument import (
-    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, ResultArgument, 
+from .arguments import (
+    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, ResultArgument,
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
