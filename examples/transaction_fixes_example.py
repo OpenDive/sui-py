@@ -80,7 +80,7 @@ async def main():
     resolved_coin = tx2.object(
         "0x123456789abcdef",
         version=42,
-        digest="ABC123DEF456789ABCDEF123456789ABCDEF123456789ABCDEF123456789ABCD"  # 32 bytes (64 hex chars)
+        digest="AuKgNNwGR1vsRVdfo9VXJ6sokEXUF6fWPtsgQKWP74yG"  # Valid base58 digest (32 bytes when decoded)
     )
     
     # Add a simple transfer

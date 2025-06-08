@@ -141,11 +141,26 @@ class ObjectRef(BcsSerializable):
                 "Expected 32-byte hex string with 0x prefix"
             )
         
-        # Validate digest format - must be exactly 32 bytes (64 hex characters)
-        if not re.match(r"^[a-fA-F0-9]{64}$", self.digest):
+        # Validate digest format - must be valid base58 that decodes to exactly 32 bytes
+        try:
+            import base58
+            decoded_digest = base58.b58decode(self.digest)
+            if len(decoded_digest) != 32:
+                raise SuiValidationError(
+                    f"Invalid object digest: {self.digest}. "
+                    f"Digest must decode to 32 bytes, got {len(decoded_digest)} bytes"
+                )
+        except ImportError:
+            # If base58 not available, do basic validation
+            if not self.digest or len(self.digest) < 32 or len(self.digest) > 50:
+                raise SuiValidationError(
+                    f"Invalid object digest format: {self.digest}. "
+                    "Expected base58-encoded string (install base58 library for full validation)"
+                )
+        except Exception as e:
             raise SuiValidationError(
-                f"Invalid object digest format: {self.digest}. "
-                f"Expected 32-byte hex string (64 characters), got {len(self.digest)} characters"
+                f"Invalid base58 digest format: {self.digest}. "
+                f"Must be valid base58 encoding of 32 bytes. Error: {e}"
             )
     
     def serialize(self, serializer: Serializer) -> None:
