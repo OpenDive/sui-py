@@ -9,7 +9,7 @@ management, input deduplication, and result chaining.
 from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
-from ..bcs import serialize, Serializer, Serializable
+from ..bcs import serialize, Serializer
 from .arguments import (
     PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, UnresolvedObjectArgument, ResultArgument,
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
@@ -54,7 +54,7 @@ class ResultHandle:
         return ResultArgument(self.command_index)
 
 
-class TransactionBuilder(Serializable):
+class TransactionBuilder:
     """
     Fluent builder for constructing Programmable Transaction Blocks.
     
@@ -358,32 +358,9 @@ class TransactionBuilder(Serializable):
         
         return ResultHandle(command_index)
     
-    def build(self) -> ProgrammableTransactionBlock:
+    async def build(self, client) -> ProgrammableTransactionBlock:
         """
-        Build the final Programmable Transaction Block.
-        
-        Returns:
-            A complete PTB ready for signing and execution
-            
-        Raises:
-            ValueError: If the transaction is invalid or has unresolved objects
-        """
-        # Validate before building
-        self._validate()
-        
-        ptb = ProgrammableTransactionBlock(
-            inputs=self._inputs.copy(),
-            commands=self._commands.copy()
-        )
-        
-        # Additional validation
-        ptb.validate()
-        
-        return ptb
-
-    async def build_async(self, client) -> ProgrammableTransactionBlock:
-        """
-        Build the final PTB with async object resolution.
+        Build the final Programmable Transaction Block with object resolution.
         
         Args:
             client: SuiClient instance for resolving object references
@@ -397,8 +374,18 @@ class TransactionBuilder(Serializable):
         # Resolve all unresolved objects first
         await self._resolve_objects(client)
         
-        # Now build normally
-        return self.build()
+        # Validate the transaction
+        self._validate()
+        
+        ptb = ProgrammableTransactionBlock(
+            inputs=self._inputs.copy(),
+            commands=self._commands.copy()
+        )
+        
+        # Additional validation
+        ptb.validate()
+        
+        return ptb
 
     async def _resolve_objects(self, client):
         """
@@ -442,24 +429,17 @@ class TransactionBuilder(Serializable):
         # Clear the unresolved list
         self._unresolved_objects.clear()
     
-    def serialize(self, serializer: Serializer) -> None:
-        """
-        Serialize the transaction builder by building and serializing the PTB.
-        
-        Args:
-            serializer: The BCS serializer to write data to
-        """
-        ptb = self.build()
-        ptb.serialize(serializer)
-    
-    def to_bytes(self) -> bytes:
+    async def to_bytes(self, client) -> bytes:
         """
         Serialize the PTB to BCS bytes.
         
+        Args:
+            client: SuiClient instance for resolving object references
+            
         Returns:
             The BCS-encoded transaction data
         """
-        ptb = self.build()
+        ptb = await self.build(client)
         return serialize(ptb)
     
     def _convert_argument(self, arg: Any) -> TransactionArgument:
@@ -496,14 +476,6 @@ class TransactionBuilder(Serializable):
         """Validate the transaction before building."""
         if not self._commands:
             raise ValueError("Transaction must have at least one command")
-        
-        # Check for unresolved objects
-        if self._unresolved_objects:
-            object_ids = [obj_id for _, obj_id in self._unresolved_objects]
-            raise ValueError(
-                f"Cannot build transaction with {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
-                f"Use build_async() with a client, or provide version/digest for all objects."
-            )
         
         # Additional validation could be added here
         pass
