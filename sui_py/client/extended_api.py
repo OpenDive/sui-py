@@ -207,15 +207,13 @@ class ExtendedAPIClient:
         params = [owner_str]
         if query is not None:
             params.append(query)
-        else:
-            params.append(None)
-            
         if cursor is not None:
+            if query is None:
+                params.append(None)  # query placeholder
             params.append(cursor)
-            if limit is not None:
-                params.append(limit)
-        elif limit is not None:
-            params.append(None)  # cursor placeholder
+        if limit is not None:
+            while len(params) < 3:
+                params.append(None)  # Fill placeholders
             params.append(limit)
         
         response = await self.rest_client.call("suix_getOwnedObjects", params)
@@ -406,4 +404,68 @@ class ExtendedAPIClient:
         Raises:
             SuiValidationError: Always, indicating WebSocket is required
         """
-        self._subscription_not_supported("subscribe_transaction") 
+        self._subscription_not_supported("subscribe_transaction")
+
+    async def get_object(
+        self,
+        object_id: Union[str, ObjectID],
+        options: Optional[Dict[str, Any]] = None
+    ) -> SuiObjectResponse:
+        """
+        Return the object information for a specified object.
+        
+        Args:
+            object_id: The ID of the queried object
+            options: Options for specifying the content to be returned
+            
+        Returns:
+            SuiObjectResponse object
+            
+        Raises:
+            SuiValidationError: If parameters are invalid
+            SuiRPCError: If the RPC call fails
+        """
+        object_id_str = self._validate_object_id(object_id)
+        
+        params = [object_id_str]
+        if options is not None:
+            params.append(options)
+        
+        response = await self.rest_client.call("sui_getObject", params)
+        return SuiObjectResponse.from_dict(response)
+
+    async def multi_get_objects(
+        self,
+        object_ids: List[Union[str, ObjectID]],
+        options: Optional[Dict[str, Any]] = None
+    ) -> List[SuiObjectResponse]:
+        """
+        Return the object data for a list of objects.
+        
+        Args:
+            object_ids: The IDs of the queried objects
+            options: Options for specifying the content to be returned
+            
+        Returns:
+            List of SuiObjectResponse objects
+            
+        Raises:
+            SuiValidationError: If parameters are invalid
+            SuiRPCError: If the RPC call fails
+        """
+        if not object_ids:
+            return []
+        
+        # Validate all object IDs
+        validated_ids = [self._validate_object_id(obj_id) for obj_id in object_ids]
+        
+        # Check for duplicates
+        if len(validated_ids) != len(set(validated_ids)):
+            raise SuiValidationError("Duplicate object IDs in batch call")
+        
+        params = [validated_ids]
+        if options is not None:
+            params.append(options)
+        
+        response = await self.rest_client.call("sui_multiGetObjects", params)
+        return [SuiObjectResponse.from_dict(item) for item in response] 

@@ -13,6 +13,7 @@ GasCoinArgument = object
 InputArgument = object
 ResultArgument = object
 NestedResultArgument = object
+UnresolvedObjectArgument = object
 
 
 class TransactionArgumentKind(IntEnum):
@@ -29,7 +30,11 @@ class TransactionArgumentKind(IntEnum):
 
 
 # Type for PTB input arguments (what goes in the PTB inputs vector)
-PTBInputArgument = Union["PureArgument", "ObjectArgument"]
+PTBInputArgument = Union[
+    "PureArgument",
+    "ObjectArgument",
+    "UnresolvedObjectArgument",
+]
 
 # Type for transaction arguments used in commands
 TransactionArgument = Union["GasCoinArgument", "InputArgument", "ResultArgument", "NestedResultArgument"]

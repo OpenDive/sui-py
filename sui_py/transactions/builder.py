@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer, Serializable
 from .arguments import (
-    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, ResultArgument,
+    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, UnresolvedObjectArgument, ResultArgument,
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
@@ -28,35 +28,29 @@ class ResultHandle:
     Handle to command results for fluent chaining.
     
     This class provides a convenient way to reference command results
-    without manually managing command indices.
+    without manually managing command indices. Uses permissive access
+    to support functions with unknown return counts.
     """
     command_index: int
-    result_count: int = 1
     
     def __getitem__(self, index: int) -> Union[ResultArgument, NestedResultArgument]:
-        """Get a specific result by index."""
-        if index < 0 or index >= self.result_count:
-            raise IndexError(f"Result index {index} out of bounds (0-{self.result_count-1})")
+        """Get a specific result by index with permissive bounds checking."""
+        if index < 0:
+            raise IndexError("Negative indices not supported")
+        if index > 50:  # Reasonable sanity check
+            raise IndexError(f"Result index {index} exceeds reasonable bounds (0-50)")
         
-        # For single result commands accessing index 0, use simple ResultArgument
-        if self.result_count == 1 and index == 0:
-            return ResultArgument(self.command_index)
-        
-        # For multiple results or explicit indexing, use NestedResultArgument
+        # For index 0, we could use either ResultArgument or NestedResultArgument
+        # Using NestedResultArgument for consistency
         return NestedResultArgument(self.command_index, index)
     
     def __iter__(self):
-        """Iterate over all results."""
-        for i in range(self.result_count):
-            if self.result_count == 1 and i == 0:
-                yield ResultArgument(self.command_index)
-            else:
-                yield NestedResultArgument(self.command_index, i)
+        """Iterate over reasonable number of potential results."""
+        for i in range(10):  # Most functions return <10 results
+            yield self[i]
     
     def single(self) -> ResultArgument:
         """Get the single result (convenience for commands that return one value)."""
-        if self.result_count != 1:
-            raise ValueError(f"Command has {self.result_count} results, expected 1")
         return ResultArgument(self.command_index)
 
 
@@ -83,9 +77,10 @@ class TransactionBuilder(Serializable):
     def __init__(self):
         """Initialize a new transaction builder."""
         self._inputs: List[PTBInputArgument] = []  # Only PureArgument and ObjectArgument
-        self._commands: List[AnyCommand] = []
+        self._commands: List[AnyCommand] = [] # List of Commands to be executed in the PTB
         self._input_cache: Dict[Any, int] = {}  # For deduplication
         self._gas_coin_used = False
+        self._unresolved_objects: List[Tuple[int, str]] = []  # (input_index, object_id) for resolution
     
     def pure(self, value: Any, type_hint: Optional[str] = None) -> InputArgument:
         """
@@ -124,9 +119,22 @@ class TransactionBuilder(Serializable):
             coin = tx.object("0x123...")
             nft = tx.object("0xabc...", version=5)
         """
-        obj_arg = ObjectArgument.from_object_id(object_id, version, digest)
-        input_index = self._add_input(obj_arg)
-        return InputArgument(input_index)
+        if version is not None and digest is not None:
+            # Fully resolved object
+            obj_arg = ObjectArgument.from_object_ref(object_id, version, digest)
+            input_index = self._add_input(obj_arg)
+            return InputArgument(input_index)
+        else:
+            # Unresolved object - will be resolved during build_async
+            normalized_id = validate_object_id(object_id)
+            obj_arg = UnresolvedObjectArgument(
+                object_id=normalized_id,
+                version=version,
+                digest=digest
+            )
+            input_index = self._add_input(obj_arg)
+            self._unresolved_objects.append((input_index, normalized_id))
+            return InputArgument(input_index)
     
     def gas_coin(self) -> GasCoinArgument:
         """
@@ -180,8 +188,8 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Assume single result for now (could be enhanced with function signature analysis)
-        return ResultHandle(command_index, result_count=1)
+        # Return permissive result handle without assuming result count
+        return ResultHandle(command_index)
     
     def transfer_objects(self, objects: List[Any], recipient: Any) -> None:
         """
@@ -232,8 +240,8 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Split coins returns as many results as amounts
-        return ResultHandle(command_index, result_count=len(amounts))
+        # Return permissive result handle (split coins returns as many results as amounts)
+        return ResultHandle(command_index)
     
     def merge_coins(self, destination: Any, sources: List[Any]) -> None:
         """
@@ -282,8 +290,8 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Publish typically returns a package object
-        return ResultHandle(command_index, result_count=1)
+        # Return permissive result handle
+        return ResultHandle(command_index)
     
     def upgrade(self, 
                 modules: List[bytes],
@@ -320,8 +328,8 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        # Upgrade returns the receipt
-        return ResultHandle(command_index, result_count=1)
+        # Return permissive result handle
+        return ResultHandle(command_index)
     
     def make_move_vec(self, elements: List[Any], type_argument: Optional[str] = None) -> ResultHandle:
         """
@@ -348,7 +356,7 @@ class TransactionBuilder(Serializable):
         command_index = len(self._commands)
         self._commands.append(command)
         
-        return ResultHandle(command_index, result_count=1)
+        return ResultHandle(command_index)
     
     def build(self) -> ProgrammableTransactionBlock:
         """
@@ -358,7 +366,7 @@ class TransactionBuilder(Serializable):
             A complete PTB ready for signing and execution
             
         Raises:
-            ValueError: If the transaction is invalid
+            ValueError: If the transaction is invalid or has unresolved objects
         """
         # Validate before building
         self._validate()
@@ -372,6 +380,67 @@ class TransactionBuilder(Serializable):
         ptb.validate()
         
         return ptb
+
+    async def build_async(self, client) -> ProgrammableTransactionBlock:
+        """
+        Build the final PTB with async object resolution.
+        
+        Args:
+            client: SuiClient instance for resolving object references
+            
+        Returns:
+            A complete PTB ready for signing and execution
+            
+        Raises:
+            ValueError: If the transaction is invalid
+        """
+        # Resolve all unresolved objects first
+        await self._resolve_objects(client)
+        
+        # Now build normally
+        return self.build()
+
+    async def _resolve_objects(self, client):
+        """
+        Resolve all unresolved object references using the provided client.
+        
+        Args:
+            client: SuiClient instance for fetching object data
+        """
+        if not self._unresolved_objects:
+            return
+        
+        # Get all unique object IDs that need resolution
+        object_ids = list(set(obj_id for _, obj_id in self._unresolved_objects))
+        
+        # Fetch object data in batch
+        object_responses = await client.extended_api.multi_get_objects(
+            object_ids, 
+            options={"showOwner": True}  # We need version and digest
+        )
+        
+        # Create lookup map
+        objects_by_id = {}
+        for response in object_responses:
+            if response.data and not response.error:
+                obj_data = response.data
+                objects_by_id[obj_data.objectId] = obj_data
+        
+        # Update all unresolved objects
+        for input_index, object_id in self._unresolved_objects:
+            if object_id not in objects_by_id:
+                raise ValueError(f"Could not resolve object {object_id}")
+            
+            obj_data = objects_by_id[object_id]
+            resolved_arg = ObjectArgument.from_object_ref(
+                obj_data.objectId,
+                int(obj_data.version),
+                obj_data.digest
+            )
+            self._inputs[input_index] = resolved_arg
+        
+        # Clear the unresolved list
+        self._unresolved_objects.clear()
     
     def serialize(self, serializer: Serializer) -> None:
         """
@@ -428,6 +497,14 @@ class TransactionBuilder(Serializable):
         if not self._commands:
             raise ValueError("Transaction must have at least one command")
         
+        # Check for unresolved objects
+        if self._unresolved_objects:
+            object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+            raise ValueError(
+                f"Cannot build transaction with {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
+                f"Use build_async() with a client, or provide version/digest for all objects."
+            )
+        
         # Additional validation could be added here
         pass
     
@@ -438,7 +515,13 @@ class TransactionBuilder(Serializable):
             f"  Inputs: {len(self._inputs)}",
             f"  Commands: {len(self._commands)}",
             f"  Gas coin used: {self._gas_coin_used}",
+            f"  Unresolved objects: {len(self._unresolved_objects)}",
         ]
+        
+        if self._unresolved_objects:
+            lines.append("  Unresolved object IDs:")
+            for _, obj_id in self._unresolved_objects:
+                lines.append(f"    {obj_id}")
         
         if self._commands:
             lines.append("  Command Types:")

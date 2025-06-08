@@ -17,7 +17,7 @@ from .types import (
     AnyArgument,
 )
 from .pure import PureArgument, pure
-from .object import ObjectArgument, object_arg
+from .object import ObjectArgument, UnresolvedObjectArgument, object_arg
 from .gas import GasCoinArgument, gas_coin
 from .input import InputArgument
 from .result import (
@@ -35,6 +35,9 @@ def deserialize_ptb_input(deserializer: Deserializer) -> PTBInputArgument:
     PTB Input tag values:
     - Pure = 0
     - Object = 1
+    
+    Note: UnresolvedObjectArgument should not appear in serialized data
+    as objects must be resolved before serialization.
     
     Args:
         deserializer: The BCS deserializer
@@ -98,6 +101,7 @@ __all__ = [
     # Classes
     "PureArgument",
     "ObjectArgument",
+    "UnresolvedObjectArgument",
     "GasCoinArgument",
     "InputArgument",
     "ResultArgument",
