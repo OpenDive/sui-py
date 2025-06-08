@@ -121,20 +121,27 @@ class ProgrammableTransactionBlock(BcsSerializable):
             raise IndexError(f"Input index {index} out of bounds (0-{len(self.inputs)-1})")
         return self.inputs[index]
     
-    def validate(self) -> None:
+    def validate(self, strict: bool = False) -> None:
         """
         Validate the PTB structure.
+        
+        Args:
+            strict: If True, enforces strict validation rules
         
         Checks:
         - Result arguments reference valid command indices
         - Command dependencies are satisfied
         - No circular dependencies
+        - In strict mode: additional constraints
         
         Raises:
             ValueError: If validation fails
         """
         self._validate_result_references()
         self._validate_dependencies()
+        
+        if strict and self.is_empty():
+            raise ValueError("Empty PTB not allowed in strict mode")
     
     def _validate_result_references(self) -> None:
         """Validate that all result arguments reference valid commands."""

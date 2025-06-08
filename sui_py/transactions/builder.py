@@ -87,13 +87,21 @@ class TransactionBuilder:
         transaction_data = await tx.build()
     """
     
-    def __init__(self):
-        """Initialize a new transaction builder."""
+    def __init__(self, strict_validation: bool = False):
+        """
+        Initialize a new transaction builder.
+        
+        Args:
+            strict_validation: If True, enforces strict validation rules that may
+                             reject valid but unusual transactions. If False (default),
+                             follows the permissive validation approach of the TypeScript SDK.
+        """
         self._inputs: List[PTBInputArgument] = []  # Only PureArgument and ObjectArgument
         self._commands: List[AnyCommand] = [] # List of Commands to be executed in the PTB
         self._input_cache: Dict[Any, int] = {}  # For deduplication
         self._gas_coin_used = False
         self._unresolved_objects: List[Tuple[int, str]] = []  # (input_index, object_id) for resolution
+        self._strict_validation = strict_validation
         
         # Transaction metadata
         self._sender: Optional[SuiAddress] = None
@@ -102,6 +110,32 @@ class TransactionBuilder:
         self._gas_payment: Optional[List[ObjectRef]] = None
         self._gas_owner: Optional[SuiAddress] = None
         self._expiration: Optional[TransactionExpiration] = None
+    
+    @classmethod
+    def new_strict(cls) -> 'TransactionBuilder':
+        """
+        Create a new transaction builder with strict validation enabled.
+        
+        Strict mode enforces additional validation rules that may reject
+        valid but unusual transactions (like empty transactions).
+        
+        Returns:
+            A new TransactionBuilder with strict validation enabled
+        """
+        return cls(strict_validation=True)
+    
+    @classmethod  
+    def new_permissive(cls) -> 'TransactionBuilder':
+        """
+        Create a new transaction builder with permissive validation (default).
+        
+        Permissive mode follows the TypeScript SDK approach, allowing empty
+        transactions and other edge cases that are valid on-chain.
+        
+        Returns:
+            A new TransactionBuilder with permissive validation
+        """
+        return cls(strict_validation=False)
     
     def set_sender(self, sender: Union[str, SuiAddress]) -> 'TransactionBuilder':
         """
@@ -500,7 +534,7 @@ class TransactionBuilder:
         )
         
         # Additional validation
-        ptb.validate()
+        ptb.validate(strict=self._strict_validation)
         
         return ptb
 
@@ -709,9 +743,23 @@ class TransactionBuilder:
         return index
     
     def _validate(self) -> None:
-        """Validate the transaction before building."""
+        """
+        Validate the transaction before building.
+        
+        In strict mode, enforces stricter validation rules.
+        In non-strict mode (default), follows TypeScript SDK's permissive approach.
+        """
         if not self._commands:
-            raise ValueError("Transaction must have at least one command")
+            if self._strict_validation:
+                raise ValueError("Transaction must have at least one command (strict mode)")
+            else:
+                # In non-strict mode, allow empty transactions like TypeScript SDK
+                import warnings
+                warnings.warn(
+                    "Building transaction with no commands. This creates an empty transaction "
+                    "that only processes gas payment. Use strict_validation=True to disallow this.",
+                    UserWarning
+                )
         
         # Additional validation could be added here
         pass
@@ -737,6 +785,7 @@ class TransactionBuilder:
         """Get a human-readable summary of the transaction being built."""
         lines = [
             f"Transaction Builder Summary:",
+            f"  Validation mode: {'Strict' if self._strict_validation else 'Permissive (TypeScript SDK compatible)'}",
             f"  Inputs: {len(self._inputs)}",
             f"  Commands: {len(self._commands)}",
             f"  Gas coin used: {self._gas_coin_used}",

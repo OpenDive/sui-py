@@ -28,6 +28,11 @@ def setup():
     tx.set_gas_price(5)
     tx.set_gas_budget(100)
     tx.set_gas_payment([ref()])  # Use the ObjectRef from ref() function
+    
+    # Add a simple command to make it a valid transaction
+    # (TypeScript SDK allows empty transactions, but this makes it more realistic)
+    tx.split_coins(tx.gas_coin(), [tx.pure(1, "u64")])
+    
     return tx
 
 async def main():
