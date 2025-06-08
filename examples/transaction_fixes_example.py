@@ -12,6 +12,7 @@ This example shows:
 import asyncio
 from sui_py.transactions import TransactionBuilder
 from sui_py.client import SuiClient
+from sui_py.types import ObjectRef
 
 
 def ref():
@@ -23,14 +24,11 @@ def ref():
 
 def setup():
     tx = TransactionBuilder()
-    tx.set_sender('0x2');
-    tx.set_gas_price(5);
-    tx.set_gas_budget(100);
-    tx.set_gas_payment(tx.gas_coin());
-    return tx;
-    # tx.setGasUnitPrice(1000);
-    # tx.setGasUnitLimit(1000000);
-    # tx.setGasUnitPrice(1000);
+    tx.set_sender('0x2')  # Now works! Automatically padded to full address
+    tx.set_gas_price(5)
+    tx.set_gas_budget(100)
+    tx.set_gas_payment([ref()])  # Use the ObjectRef from ref() function
+    return tx
 
 async def main():
     print("=== Transaction Builder Fixes Demo ===\n")
@@ -157,12 +155,13 @@ async def main():
     print("✅ Generates valid BCS-serialized transaction bytes")
     
     print("=== Object Ref Demo ===")
-    tx = setup();
-    bytes = await tx.build().to_bytes();
-    print(f"   Serialized: {len(bytes)} bytes")
-    print(f"   Hex (first 32 bytes): {bytes[:32].hex()}")
-    if len(bytes) > 32:
-        print(f"   Hex (last 16 bytes): ...{bytes[-16:].hex()}")
+    tx = setup()
+    transaction_data = await tx.build()
+    bytes_data = transaction_data.to_bytes()
+    print(f"   Serialized: {len(bytes_data)} bytes")
+    print(f"   Hex (first 32 bytes): {bytes_data[:32].hex()}")
+    if len(bytes_data) > 32:
+        print(f"   Hex (last 16 bytes): ...{bytes_data[-16:].hex()}")
     print("   ✅ No network calls needed - built offline!")
 # 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0
 
