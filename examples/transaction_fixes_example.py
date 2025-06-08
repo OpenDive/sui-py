@@ -14,6 +14,24 @@ from sui_py.transactions import TransactionBuilder
 from sui_py.client import SuiClient
 
 
+def ref():
+    return ObjectRef(
+        object_id="5877400000000000000000000000000000000000000000000000000000000000",
+        version=3619,
+        digest="1thX6LZfHDZZGkq4tt1q2yRAPVfCTpX99XN4RHFsxM"
+    )
+
+def setup():
+    tx = TransactionBuilder()
+    tx.set_sender('0x2');
+    tx.set_gas_price(5);
+    tx.set_gas_budget(100);
+    tx.set_gas_payment(tx.gas_coin());
+    return tx;
+    # tx.setGasUnitPrice(1000);
+    # tx.setGasUnitLimit(1000000);
+    # tx.setGasUnitPrice(1000);
+
 async def main():
     print("=== Transaction Builder Fixes Demo ===\n")
     
@@ -137,7 +155,16 @@ async def main():
     print("✅ Clear error messages indicating what's needed")
     print("✅ Always produces complete, valid transactions")
     print("✅ Generates valid BCS-serialized transaction bytes")
-
+    
+    print("=== Object Ref Demo ===")
+    tx = setup();
+    bytes = await tx.build().to_bytes();
+    print(f"   Serialized: {len(bytes)} bytes")
+    print(f"   Hex (first 32 bytes): {bytes[:32].hex()}")
+    if len(bytes) > 32:
+        print(f"   Hex (last 16 bytes): ...{bytes[-16:].hex()}")
+    print("   ✅ No network calls needed - built offline!")
+# 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0
 
 if __name__ == "__main__":
     asyncio.run(main()) 

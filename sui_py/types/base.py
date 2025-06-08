@@ -12,25 +12,88 @@ from typing_extensions import Self
 from ..exceptions import SuiValidationError
 from ..bcs import BcsSerializable, Serializer, Deserializer
 
+# Sui address and object ID length (32 bytes = 64 hex characters)
+SUI_ADDRESS_LENGTH = 64
+
+
+def _normalize_address_like(value: str, name: str = "address") -> str:
+    """
+    Normalize an address-like string by padding to the required length.
+    
+    Args:
+        value: Address string to normalize
+        name: Type name for error messages (e.g., "address", "object ID")
+        
+    Returns:
+        Normalized address string with 0x prefix and padded to 64 hex chars
+        
+    Raises:
+        SuiValidationError: If the input is invalid
+    """
+    if not isinstance(value, str):
+        raise SuiValidationError(f"{name.capitalize()} must be a string")
+    
+    # Add 0x prefix if missing
+    if not value.startswith("0x"):
+        if value == "":
+            raise SuiValidationError(f"{name.capitalize()} cannot be empty")
+        value = "0x" + value
+    
+    # Remove 0x prefix for processing
+    hex_part = value[2:]
+    
+    if not hex_part:
+        # Handle "0x" -> "0x0000..."
+        hex_part = "0"
+    
+    # Validate hex characters
+    if not re.match(r"^[a-fA-F0-9]+$", hex_part):
+        raise SuiValidationError(
+            f"Invalid {name} format: {value}. "
+            f"Must contain only hexadecimal characters"
+        )
+    
+    # Check length and pad if necessary
+    if len(hex_part) > SUI_ADDRESS_LENGTH:
+        raise SuiValidationError(
+            f"Invalid {name} format: {value}. "
+            f"Too long: {len(hex_part)} characters, maximum is {SUI_ADDRESS_LENGTH}"
+        )
+    
+    # Left-pad with zeros to reach required length
+    if len(hex_part) < SUI_ADDRESS_LENGTH:
+        hex_part = hex_part.zfill(SUI_ADDRESS_LENGTH)
+    
+    return f"0x{hex_part}"
+
 
 @dataclass(frozen=True)
 class SuiAddress(BcsSerializable):
     """
-    A Sui address type with validation.
+    A Sui address type with validation and automatic padding.
     
     Sui addresses are 32-byte hex strings with 0x prefix (66 characters total).
+    Short addresses are automatically padded with leading zeros.
+    
+    Examples:
+        SuiAddress("0x2") -> "0x0000000000000000000000000000000000000000000000000000000000000002"
+        SuiAddress("0x123") -> "0x0000000000000000000000000000000000000000000000000000000000000123"
     """
     value: str
     
     def __post_init__(self):
-        """Validate the address format on creation."""
-        if not isinstance(self.value, str):
-            raise SuiValidationError("Address must be a string")
+        """Validate and normalize the address format on creation."""
+        # Normalize the address (add padding if needed)
+        normalized = _normalize_address_like(self.value, "address")
         
+        # Update the value using object.__setattr__ since the dataclass is frozen
+        object.__setattr__(self, 'value', normalized)
+        
+        # Final validation - should always pass after normalization
         if not re.match(r"^0x[a-fA-F0-9]{64}$", self.value):
             raise SuiValidationError(
-                f"Invalid Sui address format: {self.value}. "
-                "Expected 32-byte hex string with 0x prefix (66 characters total)"
+                f"Invalid Sui address format after normalization: {self.value}. "
+                "This should not happen - please report this bug."
             )
     
     def serialize(self, serializer: Serializer) -> None:
@@ -69,21 +132,30 @@ class SuiAddress(BcsSerializable):
 @dataclass(frozen=True)
 class ObjectID(BcsSerializable):
     """
-    A Sui object ID type with validation.
+    A Sui object ID type with validation and automatic padding.
     
     Object IDs are 32-byte hex strings with 0x prefix (66 characters total).
+    Short object IDs are automatically padded with leading zeros.
+    
+    Examples:
+        ObjectID("0x2") -> "0x0000000000000000000000000000000000000000000000000000000000000002"
+        ObjectID("0x123") -> "0x0000000000000000000000000000000000000000000000000000000000000123"
     """
     value: str
     
     def __post_init__(self):
-        """Validate the object ID format on creation."""
-        if not isinstance(self.value, str):
-            raise SuiValidationError("Object ID must be a string")
+        """Validate and normalize the object ID format on creation."""
+        # Normalize the object ID (add padding if needed)
+        normalized = _normalize_address_like(self.value, "object ID")
         
+        # Update the value using object.__setattr__ since the dataclass is frozen
+        object.__setattr__(self, 'value', normalized)
+        
+        # Final validation - should always pass after normalization
         if not re.match(r"^0x[a-fA-F0-9]{64}$", self.value):
             raise SuiValidationError(
-                f"Invalid object ID format: {self.value}. "
-                "Expected 32-byte hex string with 0x prefix (66 characters total)"
+                f"Invalid object ID format after normalization: {self.value}. "
+                "This should not happen - please report this bug."
             )
     
     def serialize(self, serializer: Serializer) -> None:

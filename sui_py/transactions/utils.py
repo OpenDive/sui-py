@@ -130,28 +130,10 @@ def validate_object_id(object_id: str) -> str:
     Raises:
         ValueError: If object ID format is invalid
     """
-    if not isinstance(object_id, str):
-        raise ValueError(f"Object ID must be a string, got {type(object_id)}")
-    
-    if not object_id.startswith("0x"):
-        raise ValueError(f"Object ID must start with '0x': {object_id}")
-    
-    # Remove 0x prefix for length check
-    hex_part = object_id[2:]
-    
-    if not hex_part:
-        raise ValueError("Object ID cannot be empty after '0x'")
-    
-    # Check if it's valid hex
     try:
-        int(hex_part, 16)
-    except ValueError:
-        raise ValueError(f"Object ID contains invalid hexadecimal characters: {object_id}")
-    
-    # Normalize to 64 characters (32 bytes)
-    if len(hex_part) < 64:
-        hex_part = hex_part.zfill(64)
-    elif len(hex_part) > 64:
-        raise ValueError(f"Object ID too long: {object_id}")
-    
-    return f"0x{hex_part}" 
+        # Use the centralized normalization logic from base types
+        from ..types.base import _normalize_address_like
+        return _normalize_address_like(object_id, "object ID")
+    except Exception as e:
+        # Convert SuiValidationError to ValueError for backward compatibility
+        raise ValueError(str(e)) 
