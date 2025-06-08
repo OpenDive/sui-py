@@ -358,21 +358,23 @@ class TransactionBuilder:
         
         return ResultHandle(command_index)
     
-    async def build(self, client) -> ProgrammableTransactionBlock:
+    def build_sync(self) -> ProgrammableTransactionBlock:
         """
-        Build the final Programmable Transaction Block with object resolution.
+        Build the PTB synchronously (offline) when all objects are resolved.
         
-        Args:
-            client: SuiClient instance for resolving object references
-            
         Returns:
             A complete PTB ready for signing and execution
             
         Raises:
-            ValueError: If the transaction is invalid
+            ValueError: If the transaction has unresolved objects or is invalid
         """
-        # Resolve all unresolved objects first
-        await self._resolve_objects(client)
+        # Check for unresolved objects
+        if self._unresolved_objects:
+            object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+            raise ValueError(
+                f"Cannot build synchronously with {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
+                f"Use build(client) for async resolution or provide version/digest for all objects."
+            )
         
         # Validate the transaction
         self._validate()
@@ -386,6 +388,38 @@ class TransactionBuilder:
         ptb.validate()
         
         return ptb
+
+    async def build(self, client=None) -> ProgrammableTransactionBlock:
+        """
+        Build the final Programmable Transaction Block with optional object resolution.
+        
+        Usage patterns:
+        - await tx.build(client): Resolves objects if needed, always works
+        - tx.build_sync(): Fast offline build, requires all objects resolved
+        
+        Args:
+            client: Optional SuiClient instance for resolving object references.
+                   Required only if transaction has unresolved objects.
+            
+        Returns:
+            A complete PTB ready for signing and execution
+            
+        Raises:
+            ValueError: If the transaction is invalid or client is required but not provided
+        """
+        # Check if we need to resolve objects
+        if self._unresolved_objects:
+            if client is None:
+                object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+                raise ValueError(
+                    f"Client required to resolve {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
+                    f"Provide a SuiClient to build() or specify version/digest for all objects."
+                )
+            # Resolve objects using the client
+            await self._resolve_objects(client)
+        
+        # Use sync build logic after resolution
+        return self.build_sync()
 
     async def _resolve_objects(self, client):
         """
@@ -429,12 +463,25 @@ class TransactionBuilder:
         # Clear the unresolved list
         self._unresolved_objects.clear()
     
-    async def to_bytes(self, client) -> bytes:
+    def to_bytes_sync(self) -> bytes:
         """
-        Serialize the PTB to BCS bytes.
+        Serialize the PTB to BCS bytes synchronously (offline).
+        
+        Returns:
+            The BCS-encoded transaction data
+            
+        Raises:
+            ValueError: If the transaction has unresolved objects
+        """
+        ptb = self.build_sync()
+        return serialize(ptb)
+
+    async def to_bytes(self, client=None) -> bytes:
+        """
+        Serialize the PTB to BCS bytes with optional object resolution.
         
         Args:
-            client: SuiClient instance for resolving object references
+            client: Optional SuiClient instance for resolving object references
             
         Returns:
             The BCS-encoded transaction data

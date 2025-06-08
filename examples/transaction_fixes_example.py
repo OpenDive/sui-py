@@ -4,8 +4,9 @@ Example demonstrating the fixes for Result Handle assumption and object resoluti
 
 This example shows:
 1. Permissive result handle access for unknown function return counts
-2. Automatic object resolution during build
-3. Single, clean async build API
+2. Automatic object resolution during async build
+3. Offline sync building when all objects are resolved
+4. Flexible API supporting both patterns
 """
 
 import asyncio
@@ -49,19 +50,28 @@ async def main():
     print(f"   Transaction summary:")
     print(f"   {tx.summary()}\n")
     
-    # Demo 3: Automatic Object Resolution During Build
-    print("3. Automatic Object Resolution:")
-    print("   Objects will be resolved automatically during build...")
-    print("   (Note: This demo uses a mock client for demonstration)")
+    # Demo 3: Sync Build Fails with Unresolved Objects
+    print("3. Sync Build with Unresolved Objects:")
+    print("   Trying to build synchronously with unresolved objects...")
+    
+    try:
+        ptb = tx.build_sync()  # Should fail
+        print("   ❌ Expected error but build succeeded!")
+    except ValueError as e:
+        print(f"   ✅ Expected error: {e}\n")
+    
+    # Demo 4: Async Build Would Resolve Objects
+    print("4. Async Build with Object Resolution:")
+    print("   Objects would be resolved automatically during async build...")
+    print("   (Note: This demo shows the API without actual network calls)")
     
     # For demo purposes, we'll show what would happen with a real client
-    # In practice, you'd use: async with SuiClient("testnet") as client:
     print("   async with SuiClient('testnet') as client:")
     print("       ptb = await tx.build(client)  # Resolves objects automatically")
-    print("   ✅ Clean API - no separate resolution step needed!\n")
+    print("   ✅ Clean API - automatic resolution when needed!\n")
     
-    # Demo 4: Resolved Objects Work Too
-    print("4. Pre-resolved Objects:")
+    # Demo 5: Offline Building with Pre-resolved Objects
+    print("5. Offline Building with Pre-resolved Objects:")
     print("   Creating transaction with pre-resolved objects...")
     
     tx2 = TransactionBuilder()
@@ -78,14 +88,26 @@ async def main():
     
     print(f"   Transaction summary:")
     print(f"   {tx2.summary()}")
-    print("   Pre-resolved objects require no network calls during build")
+    
+    # This should work synchronously since all objects are resolved
+    try:
+        ptb2 = tx2.build_sync()  # Should work offline
+        print(f"   ✅ Sync build succeeded: {len(ptb2.commands)} commands")
+        print("   ✅ No network calls needed - built offline!")
+        
+        # Can also use async build (though not needed)
+        ptb3 = await tx2.build()  # Should also work without client
+        print(f"   ✅ Async build also works: {len(ptb3.commands)} commands")
+    except Exception as e:
+        print(f"   ❌ Build failed: {e}")
     
     print("\n=== Demo Complete ===")
     print("Key improvements:")
     print("✅ Result handles are permissive (no hardcoded result_count=1)")
-    print("✅ Single async build() method with automatic object resolution")
-    print("✅ Clean API that matches TypeScript SDK pattern")
-    print("✅ Supports both resolved and unresolved object patterns")
+    print("✅ Flexible sync/async build API")
+    print("✅ Automatic object resolution when client provided")
+    print("✅ Offline building when all objects pre-resolved")
+    print("✅ Clear error messages indicating what's needed")
     print("✅ Always produces complete, valid transactions")
 
 
