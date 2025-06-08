@@ -3,7 +3,7 @@ Complete transaction data structure implementation.
 """
 
 from dataclasses import dataclass
-from ...bcs import Serializer, Deserializer, Serializable
+from ...bcs import Serializer, Deserializer, Serializable, serialize
 from .base import TransactionType
 from .transaction_data_v1 import TransactionDataV1
 
@@ -21,6 +21,15 @@ class TransactionData(Serializable):
         
         # Serialize V1 data
         self.transaction_data_v1.serialize(serializer)
+    
+    def to_bytes(self) -> bytes:
+        """
+        Serialize the transaction data to BCS bytes.
+        
+        Returns:
+            The BCS-encoded transaction data
+        """
+        return serialize(self)
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> 'TransactionData':

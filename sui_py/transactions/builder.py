@@ -10,6 +10,7 @@ from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer
+from ..types import SuiAddress, ObjectRef
 from .arguments import (
     PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, UnresolvedObjectArgument, ResultArgument,
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
@@ -19,6 +20,10 @@ from .commands import (
     MergeCoins, Publish, Upgrade, MakeMoveVec
 )
 from .ptb import ProgrammableTransactionBlock
+from .data import (
+    TransactionData, TransactionDataV1, TransactionKind, TransactionKindType,
+    GasData, TransactionExpiration, TransactionType
+)
 from .utils import encode_pure_value, parse_move_call_target, validate_object_id
 
 
@@ -56,7 +61,7 @@ class ResultHandle:
 
 class TransactionBuilder:
     """
-    Fluent builder for constructing Programmable Transaction Blocks.
+    Fluent builder for constructing complete Sui transactions.
     
     Provides a clean, Pythonic API for building complex transactions with:
     - Automatic argument conversion and BCS encoding
@@ -64,6 +69,7 @@ class TransactionBuilder:
     - Result chaining between commands
     - Type-safe command construction
     - Built-in validation
+    - Complete transaction metadata handling
     
     Example:
         tx = TransactionBuilder()
@@ -71,7 +77,14 @@ class TransactionBuilder:
         amounts = tx.pure([1000, 2000], "vector<u64>")
         new_coins = tx.split_coins(coin, amounts)
         tx.transfer_objects([new_coins[0]], tx.pure("0xabc..."))
-        ptb = tx.build()
+        
+        # Set transaction metadata
+        tx.set_sender("0xsender...")
+        tx.set_gas_budget(1000000)
+        tx.set_gas_price(1000)
+        tx.set_gas_payment([gas_coin_ref])
+        
+        transaction_data = await tx.build()
     """
     
     def __init__(self):
@@ -81,7 +94,109 @@ class TransactionBuilder:
         self._input_cache: Dict[Any, int] = {}  # For deduplication
         self._gas_coin_used = False
         self._unresolved_objects: List[Tuple[int, str]] = []  # (input_index, object_id) for resolution
+        
+        # Transaction metadata
+        self._sender: Optional[SuiAddress] = None
+        self._gas_budget: Optional[int] = None
+        self._gas_price: Optional[int] = None
+        self._gas_payment: Optional[List[ObjectRef]] = None
+        self._gas_owner: Optional[SuiAddress] = None
+        self._expiration: Optional[TransactionExpiration] = None
     
+    def set_sender(self, sender: Union[str, SuiAddress]) -> 'TransactionBuilder':
+        """
+        Set the sender address for the transaction.
+        
+        Args:
+            sender: The sender address as string or SuiAddress
+            
+        Returns:
+            Self for method chaining
+        """
+        if isinstance(sender, str):
+            self._sender = SuiAddress(sender)
+        else:
+            self._sender = sender
+        return self
+    
+    def set_gas_budget(self, budget: int) -> 'TransactionBuilder':
+        """
+        Set the gas budget for the transaction.
+        
+        Args:
+            budget: The gas budget in MIST
+            
+        Returns:
+            Self for method chaining
+        """
+        self._gas_budget = budget
+        return self
+    
+    def set_gas_price(self, price: int) -> 'TransactionBuilder':
+        """
+        Set the gas price for the transaction.
+        
+        Args:
+            price: The gas price in MIST per gas unit
+            
+        Returns:
+            Self for method chaining
+        """
+        self._gas_price = price
+        return self
+    
+    def set_gas_payment(self, payment: List[ObjectRef]) -> 'TransactionBuilder':
+        """
+        Set the gas payment objects for the transaction.
+        
+        Args:
+            payment: List of gas coin object references
+            
+        Returns:
+            Self for method chaining
+        """
+        self._gas_payment = payment
+        return self
+    
+    def set_gas_owner(self, owner: Union[str, SuiAddress]) -> 'TransactionBuilder':
+        """
+        Set the gas owner address (for sponsored transactions).
+        
+        Args:
+            owner: The gas owner address as string or SuiAddress
+            
+        Returns:
+            Self for method chaining
+        """
+        if isinstance(owner, str):
+            self._gas_owner = SuiAddress(owner)
+        else:
+            self._gas_owner = owner
+        return self
+    
+    def set_expiration_epoch(self, epoch: int) -> 'TransactionBuilder':
+        """
+        Set the transaction to expire at a specific epoch.
+        
+        Args:
+            epoch: The epoch number when the transaction expires
+            
+        Returns:
+            Self for method chaining
+        """
+        self._expiration = TransactionExpiration(epoch=epoch)
+        return self
+    
+    def set_no_expiration(self) -> 'TransactionBuilder':
+        """
+        Set the transaction to never expire.
+        
+        Returns:
+            Self for method chaining
+        """
+        self._expiration = TransactionExpiration(epoch=None)
+        return self
+
     def pure(self, value: Any, type_hint: Optional[str] = None) -> InputArgument:
         """
         Add a pure value argument with automatic BCS encoding.
@@ -358,12 +473,12 @@ class TransactionBuilder:
         
         return ResultHandle(command_index)
     
-    def build_sync(self) -> ProgrammableTransactionBlock:
+    def build_ptb_sync(self) -> ProgrammableTransactionBlock:
         """
-        Build the PTB synchronously (offline) when all objects are resolved.
+        Build just the PTB synchronously (offline) when all objects are resolved.
         
         Returns:
-            A complete PTB ready for signing and execution
+            A complete PTB ready for wrapping in transaction data
             
         Raises:
             ValueError: If the transaction has unresolved objects or is invalid
@@ -389,9 +504,83 @@ class TransactionBuilder:
         
         return ptb
 
-    async def build(self, client=None) -> ProgrammableTransactionBlock:
+    async def build_ptb(self, client=None) -> ProgrammableTransactionBlock:
         """
-        Build the final Programmable Transaction Block with optional object resolution.
+        Build just the PTB with optional object resolution.
+        
+        Args:
+            client: Optional SuiClient instance for resolving object references.
+                   Required only if transaction has unresolved objects.
+            
+        Returns:
+            A complete PTB ready for wrapping in transaction data
+            
+        Raises:
+            ValueError: If the transaction is invalid or client is required but not provided
+        """
+        # Check if we need to resolve objects
+        if self._unresolved_objects:
+            if client is None:
+                object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+                raise ValueError(
+                    f"Client required to resolve {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
+                    f"Provide a SuiClient to build() or specify version/digest for all objects."
+                )
+            # Resolve objects using the client
+            await self._resolve_objects(client)
+        
+        # Use sync build logic after resolution
+        return self.build_ptb_sync()
+
+    def build_sync(self) -> TransactionData:
+        """
+        Build the complete transaction synchronously (offline) when all objects are resolved.
+        
+        Returns:
+            A complete TransactionData ready for signing and execution
+            
+        Raises:
+            ValueError: If the transaction has unresolved objects, missing metadata, or is invalid
+        """
+        # Validate transaction metadata
+        self._validate_transaction_metadata()
+        
+        # Build the PTB
+        ptb = self.build_ptb_sync()
+        
+        # Create transaction kind
+        transaction_kind = TransactionKind(
+            kind_type=TransactionKindType.ProgrammableTransaction,
+            programmable_transaction=ptb
+        )
+        
+        # Create gas data
+        gas_data = GasData(
+            budget=str(self._gas_budget),
+            price=str(self._gas_price),
+            payment=self._gas_payment,
+            owner=self._gas_owner or self._sender
+        )
+        
+        # Create transaction data V1
+        transaction_data_v1 = TransactionDataV1(
+            transaction_kind=transaction_kind,
+            sender=self._sender,
+            gas_data=gas_data,
+            expiration=self._expiration or TransactionExpiration()  # Default to no expiration
+        )
+        
+        # Create complete transaction data
+        transaction_data = TransactionData(
+            transaction_type=TransactionType.V1,
+            transaction_data_v1=transaction_data_v1
+        )
+        
+        return transaction_data
+
+    async def build(self, client=None) -> TransactionData:
+        """
+        Build the complete transaction with optional object resolution.
         
         Usage patterns:
         - await tx.build(client): Resolves objects if needed, always works
@@ -402,10 +591,10 @@ class TransactionBuilder:
                    Required only if transaction has unresolved objects.
             
         Returns:
-            A complete PTB ready for signing and execution
+            A complete TransactionData ready for signing and execution
             
         Raises:
-            ValueError: If the transaction is invalid or client is required but not provided
+            ValueError: If the transaction is invalid, missing metadata, or client is required but not provided
         """
         # Check if we need to resolve objects
         if self._unresolved_objects:
@@ -465,20 +654,20 @@ class TransactionBuilder:
     
     def to_bytes_sync(self) -> bytes:
         """
-        Serialize the PTB to BCS bytes synchronously (offline).
+        Serialize the complete transaction to BCS bytes synchronously (offline).
         
         Returns:
             The BCS-encoded transaction data
             
         Raises:
-            ValueError: If the transaction has unresolved objects
+            ValueError: If the transaction has unresolved objects or missing metadata
         """
-        ptb = self.build_sync()
-        return serialize(ptb)
+        transaction_data = self.build_sync()
+        return serialize(transaction_data)
 
     async def to_bytes(self, client=None) -> bytes:
         """
-        Serialize the PTB to BCS bytes with optional object resolution.
+        Serialize the complete transaction to BCS bytes with optional object resolution.
         
         Args:
             client: Optional SuiClient instance for resolving object references
@@ -486,8 +675,8 @@ class TransactionBuilder:
         Returns:
             The BCS-encoded transaction data
         """
-        ptb = await self.build(client)
-        return serialize(ptb)
+        transaction_data = await self.build(client)
+        return serialize(transaction_data)
     
     def _convert_argument(self, arg: Any) -> TransactionArgument:
         """Convert a value to the appropriate command argument type."""
@@ -527,6 +716,23 @@ class TransactionBuilder:
         # Additional validation could be added here
         pass
     
+    def _validate_transaction_metadata(self) -> None:
+        """Validate that all required transaction metadata is provided."""
+        if self._sender is None:
+            raise ValueError("Transaction sender is required. Use set_sender() to specify.")
+        
+        if self._gas_budget is None:
+            raise ValueError("Gas budget is required. Use set_gas_budget() to specify.")
+        
+        if self._gas_price is None:
+            raise ValueError("Gas price is required. Use set_gas_price() to specify.")
+        
+        if self._gas_payment is None:
+            raise ValueError("Gas payment objects are required. Use set_gas_payment() to specify.")
+        
+        if not self._gas_payment:
+            raise ValueError("At least one gas payment object is required.")
+    
     def summary(self) -> str:
         """Get a human-readable summary of the transaction being built."""
         lines = [
@@ -535,6 +741,14 @@ class TransactionBuilder:
             f"  Commands: {len(self._commands)}",
             f"  Gas coin used: {self._gas_coin_used}",
             f"  Unresolved objects: {len(self._unresolved_objects)}",
+            f"",
+            f"Transaction Metadata:",
+            f"  Sender: {self._sender}",
+            f"  Gas budget: {self._gas_budget}",
+            f"  Gas price: {self._gas_price}",
+            f"  Gas payment: {len(self._gas_payment) if self._gas_payment else 0} objects",
+            f"  Gas owner: {self._gas_owner}",
+            f"  Expiration: {self._expiration}",
         ]
         
         if self._unresolved_objects:
