@@ -163,8 +163,17 @@ async def main():
     tx = setup()
     transaction_data = await tx.build()
     bytes_data = transaction_data.to_bytes()
-    decimal_format = ','.join(str(b) for b in bytes_data)
-    print(f"   Bytes Data: {decimal_format}")
+    # decimal_format = ','.join(str(b) for b in bytes_data)
+    # print(f"   Bytes Data: {decimal_format}")
+    byte_array = list(bytes_data)
+    js_format = str(byte_array).replace(' ', '')
+    print(f"   JS Array: {js_format}")
+    
+    typescript_bytes = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0]
+    # Compare
+    are_equal = byte_array == typescript_bytes
+    print(f"   Arrays match: {are_equal}")
+    
     print(f"   Serialized: {len(bytes_data)} bytes")
     print(f"   Hex (first 32 bytes): {bytes_data[:32].hex()}")
     if len(bytes_data) > 32:
