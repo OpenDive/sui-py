@@ -19,18 +19,9 @@ except ImportError:
     RICH_AVAILABLE = False
 
 
-# Custom theme for SuiPy - Rich log level names
+# Custom theme for SuiPy - only add our custom SUCCESS level
 SUI_THEME = Theme({
-    "logging.level.debug": "dim cyan",
-    "logging.level.info": "cyan", 
-    "logging.level.warning": "yellow",
-    "logging.level.error": "bold red",
-    "logging.level.critical": "bold white on red",
     "logging.level.success": "bold green",
-    # Also theme log messages by level
-    "log.level": "bold",
-    "log.time": "dim cyan",
-    "log.message": "white",
 })
 
 
@@ -112,8 +103,9 @@ def _create_rich_handler() -> Optional[logging.Handler]:
     try:
         console = Console(
             theme=SUI_THEME,
-            force_terminal=os.environ.get("FORCE_COLOR") is not None,
-            no_color=os.environ.get("NO_COLOR") is not None,
+            force_terminal=True,  # Force terminal detection
+            no_color=bool(os.environ.get("NO_COLOR")),
+            color_system="truecolor",  # Explicitly set color system
         )
         
         handler = RichHandler(
@@ -123,8 +115,6 @@ def _create_rich_handler() -> Optional[logging.Handler]:
             show_time=False,
             show_path=False,
             markup=True,
-            show_level=True,
-            level_width=None,
         )
         
         # Don't set a custom formatter - let Rich handle the formatting and colors
