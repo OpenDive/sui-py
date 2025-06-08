@@ -163,7 +163,8 @@ async def main():
     tx = setup()
     transaction_data = await tx.build()
     bytes_data = transaction_data.to_bytes()
-    print(f"   Bytes Data: {bytes_data}")
+    decimal_format = ','.join(str(b) for b in bytes_data)
+    print(f"   Bytes Data: {decimal_format}")
     print(f"   Serialized: {len(bytes_data)} bytes")
     print(f"   Hex (first 32 bytes): {bytes_data[:32].hex()}")
     if len(bytes_data) > 32:
