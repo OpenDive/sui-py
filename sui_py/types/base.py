@@ -199,19 +199,15 @@ class ObjectRef(BcsSerializable):
     
     def __post_init__(self):
         """Validate the object reference format on creation."""
-        if not isinstance(self.object_id, str):
-            raise SuiValidationError("Object ID must be a string")
         if not isinstance(self.version, int) or self.version < 0:
             raise SuiValidationError("Version must be a non-negative integer")
         if not isinstance(self.digest, str):
             raise SuiValidationError("Digest must be a string")
         
-        # Validate object ID format
-        if not re.match(r"^0x[a-fA-F0-9]{64}$", self.object_id):
-            raise SuiValidationError(
-                f"Invalid object ID format: {self.object_id}. "
-                "Expected 32-byte hex string with 0x prefix"
-            )
+        # Normalize and validate object ID format
+        normalized_id = _normalize_address_like(self.object_id, "object ID")
+        # Update the value using object.__setattr__ since the dataclass is frozen
+        object.__setattr__(self, 'object_id', normalized_id)
         
         # Validate digest format - must be valid base58 that decodes to exactly 32 bytes
         try:
