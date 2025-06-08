@@ -19,21 +19,25 @@ except ImportError:
     RICH_AVAILABLE = False
 
 
-# Custom theme for SuiPy
+# Custom theme for SuiPy - Rich log level names
 SUI_THEME = Theme({
-    "info": "cyan",
-    "warning": "yellow",
-    "error": "bold red",
-    "success": "bold green",
-    "debug": "dim cyan",
-    "critical": "bold white on red",
+    "logging.level.debug": "dim cyan",
+    "logging.level.info": "cyan", 
+    "logging.level.warning": "yellow",
+    "logging.level.error": "bold red",
+    "logging.level.critical": "bold white on red",
+    "logging.level.success": "bold green",
+    # Also theme log messages by level
+    "log.level": "bold",
+    "log.time": "dim cyan",
+    "log.message": "white",
 })
 
 
 class SuiFormatter(logging.Formatter):
     """
-    Custom formatter that adds emojis and colors based on log level.
-    Falls back to plain text if Rich is not available or colors are disabled.
+    Custom formatter that adds emojis for standard handlers.
+    Rich handlers don't use this formatter.
     """
     
     # Emoji mapping for different log levels
@@ -48,13 +52,14 @@ class SuiFormatter(logging.Formatter):
     # Custom level for success messages
     SUCCESS_LEVEL = 25
     
-    def __init__(self, use_colors: bool = True, use_emojis: bool = True):
-        super().__init__()
-        self.use_colors = use_colors
+    def __init__(self, use_emojis: bool = True):
+        super().__init__("%(levelname)s %(message)s")
         self.use_emojis = use_emojis
+        # Add success emoji
+        self.EMOJIS[self.SUCCESS_LEVEL] = "✅"
     
     def format(self, record):
-        # Add emoji to message if enabled
+        # Add emoji to message if enabled and not already present
         if self.use_emojis:
             emoji = self.EMOJIS.get(record.levelno, "")
             if emoji and not record.getMessage().startswith(emoji):
@@ -111,14 +116,19 @@ def _create_rich_handler() -> Optional[logging.Handler]:
             no_color=os.environ.get("NO_COLOR") is not None,
         )
         
-        return RichHandler(
+        handler = RichHandler(
             console=console,
             rich_tracebacks=True,
             tracebacks_show_locals=False,
             show_time=False,
             show_path=False,
             markup=True,
+            show_level=True,
+            level_width=None,
         )
+        
+        # Don't set a custom formatter - let Rich handle the formatting and colors
+        return handler
     except Exception:
         # Fallback if Rich setup fails
         return None
@@ -128,8 +138,7 @@ def _create_standard_handler() -> logging.Handler:
     """Create a standard StreamHandler with our custom formatter."""
     handler = logging.StreamHandler(sys.stdout)
     
-    use_colors = _should_use_colors() and RICH_AVAILABLE
-    formatter = SuiFormatter(use_colors=use_colors, use_emojis=True)
+    formatter = SuiFormatter(use_emojis=True)
     handler.setFormatter(formatter)
     
     return handler
@@ -158,6 +167,12 @@ def setup_logging(level: int = logging.INFO, force_standard: bool = False) -> No
         handler = _create_rich_handler()
         if handler is None:
             handler = _create_standard_handler()
+        else:
+            # Rich handler doesn't need custom formatter
+            handler.setLevel(level)
+            logger.addHandler(handler)
+            logger.setLevel(level)
+            return
     else:
         handler = _create_standard_handler()
     
@@ -188,6 +203,10 @@ def get_logger(name: str = "sui_py") -> logging.Logger:
 def _log_success(self, message, *args, **kwargs):
     """Log a success message."""
     if self.isEnabledFor(SuiFormatter.SUCCESS_LEVEL):
+        # Add level to extra for emoji detection
+        if 'extra' not in kwargs:
+            kwargs['extra'] = {}
+        kwargs['extra']['level'] = SuiFormatter.SUCCESS_LEVEL
         self._log(SuiFormatter.SUCCESS_LEVEL, message, args, **kwargs)
 
 
