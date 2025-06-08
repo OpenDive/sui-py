@@ -92,12 +92,39 @@ async def main():
     # This should work synchronously since all objects are resolved
     try:
         ptb2 = tx2.build_sync()  # Should work offline
-        print(f"   ✅ Sync build succeeded: {len(ptb2.commands)} commands")
-        print("   ✅ No network calls needed - built offline!")
+        print(f"   ✅ Sync build succeeded!")
+        print(f"   PTB Details:")
+        print(f"     Type: {type(ptb2).__name__}")
+        print(f"     Inputs: {len(ptb2.inputs)}")
+        print(f"     Commands: {len(ptb2.commands)}")
         
+        # Show actual input content
+        if ptb2.inputs:
+            print("     Input details:")
+            for i, inp in enumerate(ptb2.inputs):
+                print(f"       {i}: {type(inp).__name__} - {inp}")
+        
+        # Show actual command content  
+        if ptb2.commands:
+            print("     Command details:")
+            for i, cmd in enumerate(ptb2.commands):
+                print(f"       {i}: {type(cmd).__name__} - {cmd}")
+        
+        # Show serialization
+        try:
+            ptb_bytes = ptb2.to_bytes()
+            print(f"     Serialized: {len(ptb_bytes)} bytes")
+            print(f"     Hex (first 32 bytes): {ptb_bytes[:32].hex()}")
+            if len(ptb_bytes) > 32:
+                print(f"     Hex (last 16 bytes): ...{ptb_bytes[-16:].hex()}")
+            print("   ✅ No network calls needed - built offline!")
+        except Exception as e:
+            print(f"     ❌ Serialization failed: {e}")
+            
         # Can also use async build (though not needed)
         ptb3 = await tx2.build()  # Should also work without client
         print(f"   ✅ Async build also works: {len(ptb3.commands)} commands")
+        
     except Exception as e:
         print(f"   ❌ Build failed: {e}")
     
@@ -109,6 +136,7 @@ async def main():
     print("✅ Offline building when all objects pre-resolved")
     print("✅ Clear error messages indicating what's needed")
     print("✅ Always produces complete, valid transactions")
+    print("✅ Generates valid BCS-serialized transaction bytes")
 
 
 if __name__ == "__main__":
