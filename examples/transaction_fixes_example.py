@@ -31,7 +31,7 @@ def setup():
     
     # Add a simple command to make it a valid transaction
     # (TypeScript SDK allows empty transactions, but this makes it more realistic)
-    tx.split_coins(tx.gas_coin(), [tx.pure(1, "u64")])
+    # tx.split_coins(tx.gas_coin(), [tx.pure(1, "u64")])
     
     return tx
 
@@ -163,6 +163,7 @@ async def main():
     tx = setup()
     transaction_data = await tx.build()
     bytes_data = transaction_data.to_bytes()
+    print(f"   Bytes Data: {bytes_data}")
     print(f"   Serialized: {len(bytes_data)} bytes")
     print(f"   Hex (first 32 bytes): {bytes_data[:32].hex()}")
     if len(bytes_data) > 32:

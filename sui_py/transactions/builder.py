@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from ..bcs import serialize, Serializer
 from ..types import SuiAddress, ObjectRef
+from ..utils.logging import get_logger
 from .arguments import (
     PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, UnresolvedObjectArgument, ResultArgument,
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
@@ -110,6 +111,9 @@ class TransactionBuilder:
         self._gas_payment: Optional[List[ObjectRef]] = None
         self._gas_owner: Optional[SuiAddress] = None
         self._expiration: Optional[TransactionExpiration] = None
+        
+        # Set up logger for this builder instance
+        self._logger = get_logger("sui_py.transactions.builder")
     
     @classmethod
     def new_strict(cls) -> 'TransactionBuilder':
@@ -149,6 +153,9 @@ class TransactionBuilder:
         """
         if isinstance(sender, str):
             self._sender = SuiAddress(sender)
+            # Log if address was automatically padded
+            if not sender.startswith('0x') or len(sender) < 66:
+                self._logger.info(f"Sender address auto-padded: '{sender}' → '{self._sender}'")
         else:
             self._sender = sender
         return self
@@ -556,12 +563,15 @@ class TransactionBuilder:
         if self._unresolved_objects:
             if client is None:
                 object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+                self._logger.error(f"Client required to resolve {len(self._unresolved_objects)} objects: {object_ids}")
                 raise ValueError(
                     f"Client required to resolve {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
                     f"Provide a SuiClient to build() or specify version/digest for all objects."
                 )
             # Resolve objects using the client
+            self._logger.info(f"Resolving {len(self._unresolved_objects)} unresolved objects...")
             await self._resolve_objects(client)
+            self._logger.success(f"Successfully resolved {len(self._unresolved_objects)} objects")
         
         # Use sync build logic after resolution
         return self.build_ptb_sync()
@@ -581,6 +591,8 @@ class TransactionBuilder:
         
         # Build the PTB
         ptb = self.build_ptb_sync()
+        
+        self._logger.debug(f"Built PTB with {len(ptb.inputs)} inputs and {len(ptb.commands)} commands")
         
         # Create transaction kind
         transaction_kind = TransactionKind(
@@ -610,6 +622,9 @@ class TransactionBuilder:
             transaction_data_v1=transaction_data_v1
         )
         
+        transaction_bytes = len(transaction_data.to_bytes())
+        self._logger.success(f"Transaction built successfully: {transaction_bytes} bytes")
+        
         return transaction_data
 
     async def build(self, client=None) -> TransactionData:
@@ -634,12 +649,15 @@ class TransactionBuilder:
         if self._unresolved_objects:
             if client is None:
                 object_ids = [obj_id for _, obj_id in self._unresolved_objects]
+                self._logger.error(f"Client required to resolve {len(self._unresolved_objects)} objects: {object_ids}")
                 raise ValueError(
                     f"Client required to resolve {len(self._unresolved_objects)} unresolved objects: {object_ids}. "
                     f"Provide a SuiClient to build() or specify version/digest for all objects."
                 )
             # Resolve objects using the client
+            self._logger.info(f"Resolving {len(self._unresolved_objects)} unresolved objects...")
             await self._resolve_objects(client)
+            self._logger.success(f"Successfully resolved {len(self._unresolved_objects)} objects")
         
         # Use sync build logic after resolution
         return self.build_sync()
@@ -754,11 +772,9 @@ class TransactionBuilder:
                 raise ValueError("Transaction must have at least one command (strict mode)")
             else:
                 # In non-strict mode, allow empty transactions like TypeScript SDK
-                import warnings
-                warnings.warn(
+                self._logger.warning(
                     "Building transaction with no commands. This creates an empty transaction "
-                    "that only processes gas payment. Use strict_validation=True to disallow this.",
-                    UserWarning
+                    "that only processes gas payment. Use strict_validation=True to disallow this."
                 )
         
         # Additional validation could be added here
