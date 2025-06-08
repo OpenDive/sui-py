@@ -126,7 +126,7 @@ class ObjectRef(BcsSerializable):
     digest: str
     
     def __post_init__(self):
-        """Validate the object reference on creation."""
+        """Validate the object reference format on creation."""
         if not isinstance(self.object_id, str):
             raise SuiValidationError("Object ID must be a string")
         if not isinstance(self.version, int) or self.version < 0:
@@ -139,6 +139,13 @@ class ObjectRef(BcsSerializable):
             raise SuiValidationError(
                 f"Invalid object ID format: {self.object_id}. "
                 "Expected 32-byte hex string with 0x prefix"
+            )
+        
+        # Validate digest format - must be exactly 32 bytes (64 hex characters)
+        if not re.match(r"^[a-fA-F0-9]{64}$", self.digest):
+            raise SuiValidationError(
+                f"Invalid object digest format: {self.digest}. "
+                f"Expected 32-byte hex string (64 characters), got {len(self.digest)} characters"
             )
     
     def serialize(self, serializer: Serializer) -> None:
