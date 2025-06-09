@@ -19,6 +19,11 @@ from .publish import Publish
 from .upgrade import Upgrade
 from .make_move_vec import MakeMoveVec
 
+from ...utils.logging import setup_logging, get_logger
+import logging
+
+setup_logging(level=logging.DEBUG, use_emojis=True)
+logger = get_logger("sui_py.transactions.commands.command.Command")
 
 class CommandKind(IntEnum):
     """
@@ -60,24 +65,31 @@ class Command(BcsSerializable):
     def serialize(self, serializer: Serializer) -> None:
         """Serialize with enum tag followed by command data."""
         if isinstance(self.data, MoveCall):
+            logger.debug(f"Serializing MoveCall Command: {self.data}")
             serializer.write_u8(CommandKind.MoveCall)
             self.data.serialize(serializer)
         elif isinstance(self.data, TransferObjects):
+            logger.debug(f"Serializing TransferObjects Command: {self.data}")
             serializer.write_u8(CommandKind.TransferObjects)
             self.data.serialize(serializer)
         elif isinstance(self.data, SplitCoins):
+            logger.debug(f"Serializing SplitCoins Command: {self.data}")
             serializer.write_u8(CommandKind.SplitCoins)
             self.data.serialize(serializer)
         elif isinstance(self.data, MergeCoins):
+            logger.debug(f"Serializing MergeCoins Command: {self.data}")
             serializer.write_u8(CommandKind.MergeCoins)
             self.data.serialize(serializer)
         elif isinstance(self.data, Publish):
+            logger.debug(f"Serializing Publish Command: {self.data}")
             serializer.write_u8(CommandKind.Publish)
             self.data.serialize(serializer)
         elif isinstance(self.data, Upgrade):
+            logger.debug(f"Serializing Upgrade Command: {self.data}")
             serializer.write_u8(CommandKind.Upgrade)
             self.data.serialize(serializer)
         elif isinstance(self.data, MakeMoveVec):
+            logger.debug(f"Serializing MakeMoveVec Command: {self.data}")
             serializer.write_u8(CommandKind.MakeMoveVec)
             self.data.serialize(serializer)
         else:
