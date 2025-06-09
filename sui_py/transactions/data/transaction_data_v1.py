@@ -9,9 +9,16 @@ from .transaction_kind import TransactionKind
 from .gas_data import GasData
 from .transaction_expiration import TransactionExpiration
 
+
+from ...utils.logging import setup_logging, get_logger
+import logging
+
 @dataclass
 class TransactionDataV1(Serializable):
     """Transaction data V1 structure."""
+    
+    setup_logging(level=logging.DEBUG, use_emojis=True)
+    logger = get_logger("sui_py.transactions.data.transaction_data_v1")
     
     transaction_kind: TransactionKind
     sender: SuiAddress
@@ -25,6 +32,8 @@ class TransactionDataV1(Serializable):
         self.sender.serialize(serializer)
         self.gas_data.serialize(serializer)
         self.expiration.serialize(serializer)
+        
+        self.logger.debug(f"Serialized transaction data V1: {list(serializer.to_bytes())}")
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> 'TransactionDataV1':

@@ -27,6 +27,8 @@ from .data import (
 )
 from .utils import encode_pure_value, parse_move_call_target, validate_object_id
 
+from ..utils.logging import setup_logging, get_logger
+import logging
 
 @dataclass
 class ResultHandle:
@@ -38,6 +40,9 @@ class ResultHandle:
     to support functions with unknown return counts.
     """
     command_index: int
+    
+    setup_logging(level=logging.DEBUG, use_emojis=True)
+    logger = get_logger("sui_py.transactions.builder.ResultHandle")
     
     def __getitem__(self, index: int) -> Union[ResultArgument, NestedResultArgument]:
         """Get a specific result by index with permissive bounds checking."""

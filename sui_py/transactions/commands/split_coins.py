@@ -12,6 +12,11 @@ from typing_extensions import Self
 from ...bcs import BcsSerializable, Serializer, Deserializer, BcsVector, bcs_vector
 from ..arguments import TransactionArgument, deserialize_transaction_argument
 
+from ...utils.logging import setup_logging, get_logger
+import logging
+
+setup_logging(level=logging.DEBUG, use_emojis=True)
+logger = get_logger("sui_py.transactions.commands.split_coins.SplitCoins")
 
 @dataclass
 class SplitCoins(BcsSerializable):
@@ -46,6 +51,8 @@ class SplitCoins(BcsSerializable):
         
         # Serialize amounts vector
         bcs_vector(self.amounts).serialize(serializer)
+        
+        logger.debug(f"Serialized SplitCoins: {list(serializer.to_bytes())}")
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:

@@ -12,6 +12,9 @@ from typing_extensions import Self
 from ..exceptions import SuiValidationError
 from ..bcs import BcsSerializable, Serializer, Deserializer
 
+from ..utils.logging import setup_logging, get_logger
+import logging
+
 # Sui address and object ID length (32 bytes = 64 hex characters)
 SUI_ADDRESS_LENGTH = 64
 
@@ -81,6 +84,9 @@ class SuiAddress(BcsSerializable):
     """
     value: str
     
+    setup_logging(level=logging.DEBUG, use_emojis=True)
+    logger = get_logger("sui_py.types.base.SuiAddress")
+    
     def __post_init__(self):
         """Validate and normalize the address format on creation."""
         # Normalize the address (add padding if needed)
@@ -104,6 +110,8 @@ class SuiAddress(BcsSerializable):
         # Use FixedBytes to ensure no length prefix (raw 32 bytes like C# AccountAddress)
         from ..bcs import FixedBytes
         FixedBytes(address_bytes, 32).serialize(serializer)
+        
+        self.logger.debug(f"Serialized address: {list(serializer.to_bytes())}")
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
@@ -197,6 +205,9 @@ class ObjectRef(BcsSerializable):
     version: int
     digest: str
     
+    setup_logging(level=logging.DEBUG, use_emojis=True)
+    logger = get_logger("sui_py.types.base.ObjectRef")
+    
     def __post_init__(self):
         """Validate the object reference format on creation."""
         if not isinstance(self.version, int) or self.version < 0:
@@ -241,6 +252,8 @@ class ObjectRef(BcsSerializable):
         
         # Serialize version as u64
         serializer.write_u64(self.version)
+        
+        self.logger.debug(f"Serialized object reference: {list(serializer.to_bytes())}")
         
         # Serialize digest as Base58-decoded bytes (match C# SuiObjectRef.Serialize)
         try:

@@ -8,6 +8,11 @@ from typing_extensions import Self
 from ...bcs import BcsSerializable, Serializer, Deserializer
 from .types import TransactionArgumentKind
 
+from ...utils.logging import setup_logging, get_logger
+import logging
+
+setup_logging(level=logging.DEBUG, use_emojis=True)
+logger = get_logger("sui_py.transactions.arguments.gas.GasCoinArgument")
 
 @dataclass(frozen=True)
 class GasCoinArgument(BcsSerializable):
@@ -22,6 +27,7 @@ class GasCoinArgument(BcsSerializable):
         """Serialize with TransactionArgument enum format."""
         serializer.write_u8(TransactionArgumentKind.GasCoin)
         # Gas coin has no additional data
+        logger.debug(f"Serialized gas coin argument: {list(serializer.to_bytes())}")
     
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
