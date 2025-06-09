@@ -249,6 +249,8 @@ class TransactionBuilder:
         Args:
             value: The value to encode (int, bool, str, bytes, SuiAddress, etc.)
             type_hint: Optional type hint for encoding (e.g., "u8", "u64", "vector<u8>")
+                      Special case: If value is bytes and type_hint is "bcs", 
+                      treats the bytes as pre-serialized BCS data (TypeScript compatibility)
             
         Returns:
             An InputArgument that references the pure value in the PTB inputs
@@ -257,9 +259,18 @@ class TransactionBuilder:
             amount = tx.pure(1000, "u64")
             recipient = tx.pure("0x123...", "address")
             data = tx.pure(b"hello", "vector<u8>")
+            
+            # For pre-serialized BCS data (TypeScript compatibility):
+            bcs_data = serialize(U64(100))
+            tx.pure(bcs_data, "bcs")  # Use raw bytes without additional encoding
         """
-        # Create pure argument with automatic encoding
-        pure_arg = PureArgument.from_value(value, type_hint)
+        # Handle pre-serialized BCS data for TypeScript compatibility
+        if isinstance(value, bytes) and type_hint == "bcs":
+            pure_arg = PureArgument(bcs_bytes=value)
+        else:
+            # Create pure argument with automatic encoding
+            pure_arg = PureArgument.from_value(value, type_hint)
+        
         input_index = self._add_input(pure_arg)
         return InputArgument(input_index)
     
