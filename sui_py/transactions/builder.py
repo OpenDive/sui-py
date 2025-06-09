@@ -17,7 +17,7 @@ from .arguments import (
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
-    AnyCommand, MoveCall, TransferObjects, SplitCoins,
+    AnyCommand, Command, MoveCall, TransferObjects, SplitCoins,
     MergeCoins, Publish, Upgrade, MakeMoveVec
 )
 from .ptb import ProgrammableTransactionBlock
@@ -340,8 +340,12 @@ class TransactionBuilder:
             converted_args.append(self._convert_argument(arg))
         
         # Create and add command
-        command = MoveCall.from_target(
-            target=target,
+        # Parse target into package::module::function
+        package, module, function = target.split("::")
+        command = Command.move_call(
+            package=package,
+            module=module,
+            function=function,
             arguments=converted_args,
             type_arguments=type_arguments or []
         )
@@ -367,7 +371,7 @@ class TransactionBuilder:
         converted_objects = [self._convert_argument(obj) for obj in objects]
         converted_recipient = self._convert_argument(recipient)
         
-        command = TransferObjects(
+        command = Command.transfer_objects(
             objects=converted_objects,
             recipient=converted_recipient
         )
@@ -393,7 +397,7 @@ class TransactionBuilder:
         converted_coin = self._convert_argument(coin)
         converted_amounts = [self._convert_argument(amount) for amount in amounts]
         
-        command = SplitCoins(
+        command = Command.split_coins(
             coin=converted_coin,
             amounts=converted_amounts
         )
@@ -421,7 +425,7 @@ class TransactionBuilder:
         converted_destination = self._convert_argument(destination)
         converted_sources = [self._convert_argument(source) for source in sources]
         
-        command = MergeCoins(
+        command = Command.merge_coins(
             destination=converted_destination,
             sources=converted_sources
         )
@@ -443,7 +447,7 @@ class TransactionBuilder:
                 bytecode = f.read()
             package = tx.publish([bytecode], dependencies=["0x1", "0x2"])
         """
-        command = Publish(
+        command = Command.publish(
             modules=modules,
             dependencies=dependencies or []
         )
@@ -479,7 +483,7 @@ class TransactionBuilder:
         """
         converted_ticket = self._convert_argument(ticket)
         
-        command = Upgrade(
+        command = Command.upgrade(
             modules=modules,
             dependencies=dependencies,
             package=package,
@@ -509,9 +513,9 @@ class TransactionBuilder:
         """
         converted_elements = [self._convert_argument(element) for element in elements]
         
-        command = MakeMoveVec(
-            elements=converted_elements,
-            type_argument=type_argument
+        command = Command.make_move_vec(
+            type_argument=type_argument,
+            elements=converted_elements
         )
         
         command_index = len(self._commands)
