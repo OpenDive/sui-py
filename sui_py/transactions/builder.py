@@ -17,8 +17,7 @@ from .arguments import (
     NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
 )
 from .commands import (
-    AnyCommand, Command, MoveCall, TransferObjects, SplitCoins,
-    MergeCoins, Publish, Upgrade, MakeMoveVec
+    AnyCommand, Command
 )
 from .ptb import ProgrammableTransactionBlock
 from .data import (
@@ -342,8 +341,12 @@ class TransactionBuilder:
         # Create and add command
         # Parse target into package::module::function
         package, module, function = target.split("::")
+        
+        # Normalize package address (e.g., "0x2" -> "0x000...002")
+        normalized_package = str(SuiAddress(package))
+        
         command = Command.move_call(
-            package=package,
+            package=normalized_package,
             module=module,
             function=function,
             arguments=converted_args,
