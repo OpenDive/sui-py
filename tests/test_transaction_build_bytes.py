@@ -139,9 +139,6 @@ class TestTransactionBuildBytes:
         # Serialize u64 value directly as bytes (equivalent to bcs.U64.serialize(100n).toBytes())
         from sui_py.bcs import serialize, U64
         input_bytes = serialize(U64(100))
-        print(f"Input bytes: {input_bytes}")
-        print(f"Input bytes length: {len(input_bytes)}")
-        
         
         # Use bytes directly as pre-serialized BCS data (TypeScript compatibility)
         tx.split_coins(tx.gas_coin(), [tx.pure(input_bytes, "bcs")])
