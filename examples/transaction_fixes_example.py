@@ -24,14 +24,10 @@ def ref():
 
 def setup():
     tx = TransactionBuilder()
-    tx.set_sender('0x2')  # Now works! Automatically padded to full address
+    tx.set_sender('0x2') 
     tx.set_gas_price(5)
     tx.set_gas_budget(100)
-    tx.set_gas_payment([ref()])  # Use the ObjectRef from ref() function
-    
-    # Add a simple command to make it a valid transaction
-    # (TypeScript SDK allows empty transactions, but this makes it more realistic)
-    # tx.split_coins(tx.gas_coin(), [tx.pure(1, "u64")])
+    tx.set_gas_payment([ref()])
     
     return tx
 
@@ -159,16 +155,11 @@ async def main():
     print("✅ Always produces complete, valid transactions")
     print("✅ Generates valid BCS-serialized transaction bytes")
     
-    print("=== Object Ref Demo ===")
+    print("=== Builds an empty transaction offline when provided sufficient data ===")
     tx = setup()
     transaction_data = await tx.build()
     bytes_data = transaction_data.to_bytes()
-    # decimal_format = ','.join(str(b) for b in bytes_data)
-    # print(f"   Bytes Data: {decimal_format}")
     byte_array = list(bytes_data)
-    js_format = str(byte_array).replace(' ', '')
-    print(f"   JS Array: {js_format}")
-    
     typescript_bytes = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0]
     # Compare
     are_equal = byte_array == typescript_bytes
@@ -179,7 +170,17 @@ async def main():
     if len(bytes_data) > 32:
         print(f"   Hex (last 16 bytes): ...{bytes_data[-16:].hex()}")
     print("   ✅ No network calls needed - built offline!")
-# 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0
+    
+    print("=== Supports epoch expiration ===")
+    tx = setup()
+    tx.set_expiration_epoch(1)
+    transaction_data = await tx.build()
+    bytes_data = transaction_data.to_bytes()
+    byte_array = list(bytes_data)
+    typescript_bytes = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0]
+    # Compare
+    are_equal = byte_array == typescript_bytes
+    print(f"   Arrays match: {are_equal}")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
