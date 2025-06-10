@@ -7,25 +7,6 @@ Async-first design for optimal performance with I/O-bound blockchain operations.
 __version__ = "0.1.0"
 __author__ = "SuiPy Team"
 
-# Show welcome message on first import
-import os
-import sys
-
-_WELCOME_SHOWN_FILE = os.path.expanduser("~/.suipy_welcome_shown")
-
-if not os.path.exists(_WELCOME_SHOWN_FILE) and not os.environ.get("SUIPY_SKIP_WELCOME"):
-    try:
-        from ._ascii_art import display_install_message
-        display_install_message()
-        # Create marker file to avoid showing again
-        try:
-            with open(_WELCOME_SHOWN_FILE, "w") as f:
-                f.write("1")
-        except:
-            pass  # Ignore file creation errors
-    except ImportError:
-        pass
-
 from .client import SuiClient
 from .exceptions import SuiError, SuiRPCError, SuiValidationError
 from .types import (
