@@ -54,7 +54,9 @@ def deserialize_ptb_input(deserializer: Deserializer) -> PTBInputArgument:
     elif tag == 1:  # Object
         # Check object ref type to determine if it's regular or receiving
         obj_ref_type = deserializer.read_u8()  # ObjectRefType
-        if obj_ref_type == 0:  # ImmOrOwned
+        if obj_ref_type == 0 or obj_ref_type == 1:  # ImmOrOwned (0) or Shared (1)
+            # Create a new deserializer that includes the obj_ref_type we just read
+            # We need to "put back" the obj_ref_type byte for ObjectArgument to deserialize properly
             return ObjectArgument.deserialize(deserializer)
         elif obj_ref_type == 2:  # Receiving
             return ReceivingArgument.deserialize(deserializer)

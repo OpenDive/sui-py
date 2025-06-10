@@ -212,7 +212,7 @@ class TestTransactionBuildBytes:
         """Test transaction with receiving arguments (matches TypeScript)."""
         tx = setup()
         
-        # Add regular object reference  
+        # Add regular object reference
         tx.object(ref().object_id, ref().version, ref().digest)
         
         # Split coins
@@ -220,13 +220,13 @@ class TestTransactionBuildBytes:
         
         # Merge coins with another object
         tx.merge_coins(tx.gas_coin(), [
-            coin.single(), 
+            coin.single(),
             tx.object(ref().object_id, ref().version, ref().digest)
         ])
         
         # Move call with receiving argument
         tx.move_call(
-            "0x2::devnet_nft::mint", 
+            "0x2::devnet_nft::mint",
             arguments=[
                 tx.object(ref().object_id, ref().version, ref().digest),     # Regular object
                 tx.receiving_ref(ref().object_id, ref().version, ref().digest) # Receiving object

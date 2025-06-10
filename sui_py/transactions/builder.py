@@ -820,9 +820,20 @@ class TransactionBuilder:
     
     def _add_input(self, arg: PTBInputArgument) -> int:
         """Add input with deduplication and return the index."""
-        # Simple deduplication based on content
-        # For more sophisticated deduplication, we could use content hashing
-        cache_key = (type(arg), str(arg))
+        # Create a proper cache key for deduplication
+        from .arguments import PureArgument, ObjectArgument, ReceivingArgument
+        
+        if isinstance(arg, PureArgument):
+            cache_key = ("pure", arg.bcs_bytes)
+        elif isinstance(arg, ObjectArgument):
+            cache_key = ("object_ref", arg.object_ref.object_id, arg.object_ref.version, arg.object_ref.digest)
+        elif isinstance(arg, ReceivingArgument):
+            # Use the same cache key as ObjectArgument for objects with the same ID/version/digest
+            # This matches TypeScript SDK behavior where receiving and regular refs of the same object deduplicate
+            cache_key = ("object_ref", arg.receiving_ref.object_id, arg.receiving_ref.version, arg.receiving_ref.digest)
+        else:
+            # Fallback for other types
+            cache_key = (type(arg).__name__, str(arg))
         
         if cache_key in self._input_cache:
             # Return index of existing input
@@ -965,7 +976,7 @@ class TransactionBuilder:
     
     def _input_to_dict(self, input_arg) -> dict:
         """Convert PTB input argument to dictionary format."""
-        from .arguments import PureArgument, ObjectArgument
+        from .arguments import PureArgument, ObjectArgument, ReceivingArgument
         
         if isinstance(input_arg, PureArgument):
             import base64
@@ -981,6 +992,16 @@ class TransactionBuilder:
                         "objectId": str(input_arg.object_ref.object_id),
                         "version": str(input_arg.object_ref.version),
                         "digest": input_arg.object_ref.digest
+                    }
+                }
+            }
+        elif isinstance(input_arg, ReceivingArgument):
+            return {
+                "Object": {
+                    "ReceivingObject": {
+                        "objectId": str(input_arg.receiving_ref.object_id),
+                        "version": str(input_arg.receiving_ref.version),
+                        "digest": input_arg.receiving_ref.digest
                     }
                 }
             }

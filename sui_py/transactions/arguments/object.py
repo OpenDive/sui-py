@@ -30,6 +30,7 @@ class ObjectArgument(BcsSerializable):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
         """Deserialize an object argument."""
+        # The ObjectRefType byte (0 for ImmOrOwned, 1 for Shared) has already been consumed
         object_ref = ObjectRef.deserialize(deserializer)
         return cls(object_ref)
     
@@ -145,6 +146,7 @@ class ReceivingArgument(BcsSerializable):
     @classmethod
     def deserialize(cls, deserializer: Deserializer) -> Self:
         """Deserialize a receiving argument."""
+        # The ObjectRefType byte (2 for Receiving) has already been consumed
         receiving_ref = ReceivingRef.deserialize(deserializer)
         return cls(receiving_ref)
     
