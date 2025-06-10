@@ -3,7 +3,9 @@ Setup configuration for SuiPy SDK.
 """
 
 from setuptools import setup, find_packages
+from setuptools.command.install import install
 import os
+import sys
 
 # Read README for long description
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -23,6 +25,21 @@ else:
         "pynacl>=1.5.0",
         "ecdsa>=0.18.0"
     ]
+
+
+class PostInstallCommand(install):
+    """Custom install command to display ASCII art after installation."""
+    
+    def run(self):
+        install.run(self)
+        try:
+            from sui_py._ascii_art import display_install_message
+            display_install_message()
+        except ImportError:
+            # Fallback if import fails
+            print("\n🎉 SuiPy installed successfully!")
+            print("✨ by OpenDive")
+
 
 setup(
     name="sui-py",
@@ -51,6 +68,9 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=requirements,
+    cmdclass={
+        'install': PostInstallCommand,
+    },
     extras_require={
         "dev": [
             "pytest>=7.0.0",
