@@ -7,7 +7,7 @@ from typing import Optional, Union
 from typing_extensions import Self
 
 from ...bcs import BcsSerializable, Serializer, Deserializer
-from ...types import ObjectRef
+from ...types import ObjectRef, ReceivingRef
 
 
 @dataclass(frozen=True)
@@ -123,3 +123,54 @@ def object_arg(object_id: str, version: Optional[int] = None, digest: Optional[s
         from ..utils import validate_object_id
         normalized_id = validate_object_id(object_id)
         return UnresolvedObjectArgument(object_id=normalized_id, version=version, digest=digest)
+
+
+@dataclass(frozen=True)
+class ReceivingArgument(BcsSerializable):
+    """
+    Receiving object reference argument.
+    
+    Receiving arguments represent references to objects being transferred
+    TO the current transaction, as opposed to objects already owned.
+    """
+    receiving_ref: ReceivingRef
+    
+    def serialize(self, serializer: Serializer) -> None:
+        """Serialize as Object CallArg (tag 1 + object ref type + receiving ref)."""
+        serializer.write_u8(1)  # Object variant
+        # ObjectRefType.Receiving (2) for receiving objects
+        serializer.write_u8(2)  # Use variant 2 (Receiving)
+        self.receiving_ref.serialize(serializer)
+    
+    @classmethod
+    def deserialize(cls, deserializer: Deserializer) -> Self:
+        """Deserialize a receiving argument."""
+        receiving_ref = ReceivingRef.deserialize(deserializer)
+        return cls(receiving_ref)
+    
+    @classmethod
+    def from_receiving_ref(cls, object_id: str, version: int, digest: str) -> "ReceivingArgument":
+        """
+        Create a ReceivingArgument from a complete receiving reference.
+        
+        Args:
+            object_id: The object ID
+            version: The version number
+            digest: The object digest
+            
+        Returns:
+            A new ReceivingArgument
+        """
+        from ..utils import validate_object_id
+        normalized_id = validate_object_id(object_id)
+        receiving_ref = ReceivingRef(
+            object_id=normalized_id,
+            version=version,
+            digest=digest
+        )
+        return cls(receiving_ref)
+
+
+def receiving_arg(object_id: str, version: int, digest: str) -> ReceivingArgument:
+    """Create a receiving argument from an object ID, version, and digest."""
+    return ReceivingArgument.from_receiving_ref(object_id, version, digest)

@@ -9,12 +9,12 @@ management, input deduplication, and result chaining.
 from typing import List, Union, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
-from ..bcs import serialize, Serializer
+from ..bcs import serialize, Serializer, Deserializer
 from ..types import SuiAddress, ObjectRef
 from ..utils.logging import get_logger
 from .arguments import (
-    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, UnresolvedObjectArgument, ResultArgument,
-    NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, gas_coin
+    PTBInputArgument, TransactionArgument, PureArgument, ObjectArgument, ReceivingArgument, UnresolvedObjectArgument, ResultArgument,
+    NestedResultArgument, GasCoinArgument, InputArgument, pure, object_arg, receiving_arg, gas_coin
 )
 from .commands import (
     AnyCommand, Command
@@ -144,6 +144,57 @@ class TransactionBuilder:
             A new TransactionBuilder with permissive validation
         """
         return cls(strict_validation=False)
+    
+    @classmethod
+    def from_bytes(cls, bytes_data: bytes) -> 'TransactionBuilder':
+        """
+        Reconstruct a TransactionBuilder from BCS-encoded transaction bytes.
+        
+        This enables round-trip serialization testing and transaction inspection.
+        
+        Args:
+            bytes_data: BCS-encoded transaction data bytes
+            
+        Returns:
+            A new TransactionBuilder with the reconstructed transaction
+            
+        Raises:
+            ValueError: If the bytes cannot be deserialized
+            
+        Example:
+            # Round-trip test
+            tx1 = TransactionBuilder()
+            # ... configure transaction ...
+            bytes1 = await tx1.to_bytes()
+            tx2 = TransactionBuilder.from_bytes(bytes1)
+            bytes2 = await tx2.to_bytes()
+            assert bytes1 == bytes2
+        """
+        from ..bcs import Deserializer
+        from .data import TransactionData
+        
+        # Deserialize the transaction data
+        deserializer = Deserializer(bytes_data)
+        transaction_data = TransactionData.deserialize(deserializer)
+        
+        # Create a new builder and populate it from the deserialized data
+        builder = cls()
+        
+        # Set transaction metadata
+        v1_data = transaction_data.transaction_data_v1
+        builder._sender = v1_data.sender
+        builder._gas_budget = int(v1_data.gas_data.budget) if v1_data.gas_data.budget else None
+        builder._gas_price = int(v1_data.gas_data.price) if v1_data.gas_data.price else None
+        builder._gas_payment = v1_data.gas_data.payment
+        builder._gas_owner = v1_data.gas_data.owner
+        builder._expiration = v1_data.expiration
+        
+        # Populate PTB data
+        ptb = v1_data.transaction_kind.programmable_transaction
+        builder._inputs = ptb.inputs.copy()
+        builder._commands = ptb.commands.copy()
+        
+        return builder
     
     def set_sender(self, sender: Union[str, SuiAddress]) -> 'TransactionBuilder':
         """
@@ -1030,4 +1081,27 @@ class TransactionBuilder:
         # Use the same conversion logic as sync version
         # (Implementation would be same as to_json but using async build)
         # For brevity, implementing via build_sync after resolution
-        return self.to_json() 
+        return self.to_json()
+
+    def receiving_ref(self, object_id: str, version: int, digest: str) -> InputArgument:
+        """
+        Add a receiving object reference argument.
+        
+        Receiving arguments represent objects being transferred TO this transaction,
+        as opposed to objects already owned by the sender.
+        
+        Args:
+            object_id: The receiving object ID
+            version: The object version number
+            digest: The object digest
+            
+        Returns:
+            An InputArgument that references the receiving object in the PTB inputs
+            
+        Example:
+            receiving_obj = tx.receiving_ref("0x123...", version=5, digest="abc...")
+            tx.move_call("0x2::module::receive_object", arguments=[receiving_obj])
+        """
+        receiving_arg_obj = ReceivingArgument.from_receiving_ref(object_id, version, digest)
+        input_index = self._add_input(receiving_arg_obj)
+        return InputArgument(input_index) 

@@ -206,14 +206,68 @@ class TestTransactionBuildBytes:
         ]
         
         assert_bytes_match(actual_bytes, expected_bytes, "object inputs")
-
-    # Round-trip test
-    # bytes1 = await tx.to_bytes()
-    # tx2 = TransactionBuilder.from_bytes(bytes1)
-    # bytes2 = await tx2.to_bytes()
     
-    # assert bytes1 == bytes2, "Round-trip serialization must be identical"    
-    
+    @pytest.mark.asyncio
+    async def test_uses_receiving_argument(self):
+        """Test transaction with receiving arguments (matches TypeScript)."""
+        tx = setup()
+        
+        # Add regular object reference  
+        tx.object(ref().object_id, ref().version, ref().digest)
+        
+        # Split coins
+        coin = tx.split_coins(tx.gas_coin(), [tx.pure(100, "u64")])
+        
+        # Merge coins with another object
+        tx.merge_coins(tx.gas_coin(), [
+            coin.single(), 
+            tx.object(ref().object_id, ref().version, ref().digest)
+        ])
+        
+        # Move call with receiving argument
+        tx.move_call(
+            "0x2::devnet_nft::mint", 
+            arguments=[
+                tx.object(ref().object_id, ref().version, ref().digest),     # Regular object
+                tx.receiving_ref(ref().object_id, ref().version, ref().digest) # Receiving object
+            ],
+            type_arguments=[]
+        )
+        
+        # Build and get bytes
+        transaction_data = await tx.build()
+        actual_bytes = list(transaction_data.to_bytes())
+        
+        # # Round-trip test
+        # tx2 = TransactionBuilder.from_bytes(bytes1)
+        # bytes2 = await tx2.to_bytes()
+        
+        # # Verify round-trip works
+        # assert bytes1 == bytes2, "Round-trip serialization must be identical"
+        
+        # Compare with expected TypeScript output
+        
+        
+        expected_bytes = [
+            # TODO: Replace with actual TypeScript SDK output from:
+            # tx = setup(); 
+            # tx.object(Inputs.ObjectRef(ref()));
+            # const coin = tx.splitCoins(tx.gas, [100]);
+            # tx.add(Commands.MergeCoins(tx.gas, [coin, tx.object(Inputs.ObjectRef(ref()))]));
+            # tx.add(Commands.MoveCall({
+            #   target: '0x2::devnet_nft::mint',
+            #   arguments: [tx.object(Inputs.ObjectRef(ref())), tx.object(Inputs.ReceivingRef(ref()))]
+            # }));
+            # const bytes = await tx.build();
+            0,0,2,1,0,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,8,100,0,0,0,0,0,0,0,3,2,0,1,1,1,0,3,0,2,2,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,10,100,101,118,110,101,116,95,110,102,116,4,109,105,110,116,0,2,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,88,119,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,35,14,0,0,0,0,0,0,32,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,0,0,0,0,0,0,0,100,0,0,0,0,0,0,0,0
+        ]
+        
+        # For now, just validate structure
+        print(f"Receiving argument test bytes length: {len(actual_bytes)}")
+        print(f"First 20 bytes: {actual_bytes[:20]}")
+        
+        assert_bytes_match(actual_bytes, expected_bytes, "uses receiving argument")
+        
     # @pytest.mark.asyncio
     # async def test_move_call_with_type_arguments(self):
     #     """Test move call with type arguments."""
@@ -236,32 +290,6 @@ class TestTransactionBuildBytes:
     #     ]
         
     #     assert_bytes_match(actual_bytes, expected_bytes, "move call with type arguments")
-    
-    # @pytest.mark.asyncio
-    # async def test_transfer_objects(self):
-    #     """Test transfer objects command."""
-    #     tx = setup()
-        
-    #     # Split coins to get something to transfer
-    #     coin = tx.split_coins(tx.gas_coin(), [tx.pure(100, "u64")])
-        
-    #     # Transfer the coin
-    #     tx.transfer_objects(
-    #         [coin.single()], 
-    #         tx.pure("0x0000000000000000000000000000000000000000000000000000000000000003", "address")
-    #     )
-        
-    #     transaction_data = await tx.build()
-    #     actual_bytes = list(transaction_data.to_bytes())
-        
-    #     # Placeholder - replace with TypeScript SDK output
-    #     expected_bytes = [
-    #         # TODO: Replace with actual TypeScript SDK output
-    #         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    #         # ... add complete byte array from TypeScript test
-    #     ]
-        
-    #     assert_bytes_match(actual_bytes, expected_bytes, "transfer objects")
 
 
 # Utility function for manual testing

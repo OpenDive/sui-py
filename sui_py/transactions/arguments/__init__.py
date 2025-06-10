@@ -17,7 +17,7 @@ from .types import (
     AnyArgument,
 )
 from .pure import PureArgument, pure
-from .object import ObjectArgument, UnresolvedObjectArgument, object_arg
+from .object import ObjectArgument, UnresolvedObjectArgument, ReceivingArgument, object_arg, receiving_arg
 from .gas import GasCoinArgument, gas_coin
 from .input import InputArgument
 from .result import (
@@ -52,9 +52,14 @@ def deserialize_ptb_input(deserializer: Deserializer) -> PTBInputArgument:
     if tag == 0:  # Pure
         return PureArgument.deserialize(deserializer)
     elif tag == 1:  # Object
-        # Skip object ref type byte since we only support ImmOrOwned for now
-        deserializer.read_u8()  # ObjectRefType
-        return ObjectArgument.deserialize(deserializer)
+        # Check object ref type to determine if it's regular or receiving
+        obj_ref_type = deserializer.read_u8()  # ObjectRefType
+        if obj_ref_type == 0:  # ImmOrOwned
+            return ObjectArgument.deserialize(deserializer)
+        elif obj_ref_type == 2:  # Receiving
+            return ReceivingArgument.deserialize(deserializer)
+        else:
+            raise ValueError(f"Unknown object ref type: {obj_ref_type}")
     else:
         raise ValueError(f"Unknown PTB input argument tag: {tag}")
 
@@ -102,6 +107,7 @@ __all__ = [
     "PureArgument",
     "ObjectArgument",
     "UnresolvedObjectArgument",
+    "ReceivingArgument",
     "GasCoinArgument",
     "InputArgument",
     "ResultArgument",
@@ -110,6 +116,7 @@ __all__ = [
     # Factory functions
     "pure",
     "object_arg",
+    "receiving_arg",
     "gas_coin",
     "result",
     "nested_result",

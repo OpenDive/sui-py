@@ -5,7 +5,7 @@ This module contains all the structured data types that correspond to the
 Sui JSON-RPC API Component Schemas.
 """
 
-from .base import SuiAddress, ObjectID, ObjectRef, TransactionDigest, Base64, Hex
+from .base import SuiAddress, ObjectID, ObjectRef, ReceivingRef, TransactionDigest, Base64, Hex
 from .coin import Balance, Coin, SuiCoinMetadata, Supply
 from .pagination import Page
 from .extended import (
@@ -39,6 +39,7 @@ __all__ = [
     "SuiAddress",
     "ObjectID",
     "ObjectRef",
+    "ReceivingRef",
     "TransactionDigest",
     "Base64",
     "Hex",

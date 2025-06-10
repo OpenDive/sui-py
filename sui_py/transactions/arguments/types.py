@@ -9,6 +9,7 @@ from ...bcs import BcsSerializable, Serializer, Deserializer
 # Forward references for type hints
 PureArgument = object
 ObjectArgument = object
+ReceivingArgument = object
 GasCoinArgument = object
 InputArgument = object
 ResultArgument = object
@@ -33,6 +34,7 @@ class TransactionArgumentKind(IntEnum):
 PTBInputArgument = Union[
     "PureArgument",
     "ObjectArgument",
+    "ReceivingArgument",
     "UnresolvedObjectArgument",
 ]
 
