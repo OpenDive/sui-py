@@ -3,7 +3,11 @@ Setup configuration for SuiPy SDK.
 """
 
 from setuptools import setup, find_packages
+from setuptools.command.install import install
+from setuptools.command.develop import develop
+from setuptools.command.egg_info import egg_info
 import os
+import sys
 
 # Read README for long description
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -23,6 +27,52 @@ else:
         "pynacl>=1.5.0",
         "ecdsa>=0.18.0"
     ]
+
+
+def display_ascii_art():
+    """Display ASCII art during installation."""
+    print("\n" + "="*80)
+    ascii_art = """
+    
+    ███████╗         •• ██████╗         
+    ██╔════╝██╗   ██╗██║██╔══██╗██╗   ██╗
+    ███████╗██║   ██║██║██████╔╝╚██╗ ██╔╝
+    ╚════██║██║   ██║██║██╔═══╝  ╚████╔╝ 
+    ███████║╚██████╔╝██║██║       ╚██╔╝  
+    ╚══════╝ ╚═════╝ ╚═╝╚═╝        ██║  
+                                   ╚═╝   
+    
+    a deliciously lightweight, high-performance Python SDK for the Sui blockchain
+    
+    by OpenDive (@OpenDiveHQ)
+    
+    """
+    print(ascii_art)
+    print("="*80 + "\n")
+
+
+class PostInstallCommand(install):
+    """Post-installation for installation mode."""
+    def run(self):
+        install.run(self)
+        display_ascii_art()
+
+
+class PostDevelopCommand(develop):
+    """Post-installation for development mode."""
+    def run(self):
+        develop.run(self)
+        display_ascii_art()
+
+
+class PostEggInfoCommand(egg_info):
+    """Post-installation for egg_info mode."""
+    def run(self):
+        egg_info.run(self)
+        # Only show during pip install, not just egg_info generation
+        if '--single-version-externally-managed' in sys.argv or 'install' in sys.argv:
+            display_ascii_art()
+
 
 setup(
     name="sui-py",
@@ -51,6 +101,11 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=requirements,
+    cmdclass={
+        'install': PostInstallCommand,
+        'develop': PostDevelopCommand,
+        'egg_info': PostEggInfoCommand,
+    },
     extras_require={
         "dev": [
             "pytest>=7.0.0",
