@@ -1,4 +1,6 @@
-![SuiPy Banner](public/assets/SuiPy-banner.png)
+<div align="center">
+  <img src="public/assets/SuiPy-banner.png" alt="SuiPy Banner" />
+</div>
 
 # sui-py
 SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blockchain
