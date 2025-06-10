@@ -53,7 +53,7 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
 
 ✅ **Governance Read API** - Complete validator and staking information queries
 
-🚧 **In Development** - High-level TransactionBuilder APIs (require RPC infrastructure for object resolution and gas estimation)
+✅ **TransactionBuilder APIs** - Complete high-level transaction building with result chaining, argument validation, and BCS serialization (RPC-optional for basic operations)
 
 ### Async-First Design
 
@@ -78,9 +78,13 @@ async with SuiClient("mainnet") as client:
     - ObjectArgument, InputArgument, ResultArgument with proper variant encoding
     - MoveCall with correct package/module/function format
     - TransactionExpiration, GasData, and full transaction structure support
-  - **High-Level TransactionBuilder** 🚧: Fluent API for building transactions (requires RPC for full functionality)
-    - Basic object/pure argument creation works without RPC
-    - Advanced features need RPC: object resolution, gas estimation, live state access
+  - **High-Level TransactionBuilder** ✅: Fluent API for building transactions with comprehensive functionality
+    - Complete transaction building with object/pure argument creation (no RPC required)
+    - Result chaining between commands with automatic input deduplication
+    - Move call support with proper package/module/function resolution
+    - Coin operations: split, merge, transfer with type safety
+    - Object operations: transfer, publish, upgrade with validation
+    - Advanced features requiring RPC: gas estimation, object resolution from network state
   - **Type-Safe Arguments**: PureArgument, ObjectArgument, ResultArgument, InputArgument with automatic conversion
   - **Full Command Support**: Move calls, object transfers, coin operations, package management
   - **Result Chaining**: Use outputs from one command as inputs to another
@@ -399,33 +403,40 @@ tx.transfer_objects([new_coins[0]], recipient)
 
 # Build the transaction
 ptb = tx.build()
-print(f"Transaction summary: {ptb}")
+print(f"Transaction has {len(ptb.commands)} commands")
+print(f"Transaction has {len(ptb.inputs)} inputs")
 
 # Get bytes for signing
 tx_bytes = tx.to_bytes()
+print(f"Transaction bytes length: {len(tx_bytes)}")
 
-# Complex DeFi operations with result chaining (requires RPC for gas/object resolution)
+# Complex DeFi operations with result chaining (works without RPC)
 defi_tx = TransactionBuilder()
 
-# Note: Advanced operations like gas_coin(), object resolution, etc. require RPC client
-# gas = defi_tx.gas_coin()  # ❌ Requires RPC
-# operation_coins = defi_tx.split_coins(gas, [1000, 2000])
+# Create a complex transaction with multiple operations
+pool = defi_tx.object("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+token_amount = defi_tx.pure(1000000, "u64")
 
-# For now, use direct object references
-pool = defi_tx.object("0x...")
+# Add liquidity to a pool
 liquidity_result = defi_tx.move_call(
     "0x123::pool::add_liquidity",
-    arguments=[pool],
+    arguments=[pool, token_amount],
     type_arguments=["0x2::sui::SUI", "0x456::token::USDC"]
 )
 
-# Use the result in another operation
-lp_tokens = liquidity_result.single()
+# Use the result in another operation - result chaining works perfectly
+lp_tokens = liquidity_result.result(0)  # First return value
 defi_tx.transfer_objects([lp_tokens], recipient)
 
-# Serialize the transaction
+# Split coins and use results
+coin_splits = defi_tx.split_coins(coin, [tx.pure(500, "u64"), tx.pure(300, "u64")])
+defi_tx.transfer_objects([coin_splits.result(0)], recipient)
+defi_tx.transfer_objects([coin_splits.result(1)], recipient)
+
+# Build and serialize - everything works without RPC
 complex_ptb = defi_tx.build()
 complex_bytes = defi_tx.to_bytes()
+print(f"Complex transaction: {len(complex_ptb.commands)} commands, {len(complex_bytes)} bytes")
 ```
 
 ### Coin Query API
@@ -540,15 +551,15 @@ python -m pytest tests/test_transactions_serialization.py::TestTransactionsSeria
 python -m pytest tests/test_transactions_serialization.py::TestTransactionsSerialization::test_transaction_data_serialization_multiple_args -v
 ```
 
-**High-Level TransactionBuilder Tests** (Currently Skipped - Requires RPC):
+**High-Level TransactionBuilder Tests**:
 ```bash
-# TransactionBuilder tests (skipped until RPC infrastructure is implemented)
+# TransactionBuilder tests - comprehensive coverage of builder functionality
 python -m pytest tests/test_transactions.py -v
 
-# These tests are marked as skipped because they require:
-# - RPC client for object resolution
-# - Gas estimation via network calls  
-# - Live blockchain state access
+# Test specific builder functionality:
+python -m pytest tests/test_transactions.py::TestTransactionBuilder::test_basic_transaction_building -v
+python -m pytest tests/test_transactions.py::TestTransactionBuilder::test_result_chaining -v
+python -m pytest tests/test_transactions.py::TestTransactionBuilder::test_move_call_operations -v
 ```
 
 **BCS Tests** (Binary Canonical Serialization):
@@ -592,7 +603,7 @@ The test suite covers:
   - ✅ **BCS Round-trip Testing**: Complete serialization/deserialization verification
   - ✅ **Cross-Language Verification**: Python serialization exactly matches C# Unity SDK output (304 & 310 bytes)
   - ✅ **Error Handling**: Input validation and transaction building error cases
-  - 🚧 **High-Level TransactionBuilder**: Tests skipped pending RPC infrastructure implementation
+  - ✅ **High-Level TransactionBuilder**: Complete test coverage including result chaining, argument validation, and complex transaction patterns
 
 - **BCS Implementation** (37 test cases - enhanced from C# Sui Unity SDK):
   - ✅ **Comprehensive Primitive Types**: All integer types (U8, U16, U32, U64, U128, U256) with exact value testing
