@@ -1,3 +1,5 @@
+![SuiPy Banner](public/assets/SuiPy-banner.png)
+
 # sui-py
 SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blockchain
 
