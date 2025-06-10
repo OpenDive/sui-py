@@ -234,22 +234,23 @@ class TestTransactionBuildBytes:
             type_arguments=[]
         )
         
+        bytes1 = await tx.to_bytes();
+        print(f"bytes1: {list(bytes1)}")
+
+        # Round-trip test
+        tx2 = TransactionBuilder.from_bytes(bytes1)
+        bytes2 = await tx2.to_bytes()
+        
+        # Verify round-trip works
+        assert bytes1 == bytes2, "Round-trip serialization must be identical"
+        
+        # Compare with expected TypeScript output
         # Build and get bytes
         transaction_data = await tx.build()
         actual_bytes = list(transaction_data.to_bytes())
-        
-        # # Round-trip test
-        # tx2 = TransactionBuilder.from_bytes(bytes1)
-        # bytes2 = await tx2.to_bytes()
-        
-        # # Verify round-trip works
-        # assert bytes1 == bytes2, "Round-trip serialization must be identical"
-        
-        # Compare with expected TypeScript output
-        
-        
+
         expected_bytes = [
-            # TODO: Replace with actual TypeScript SDK output from:
+            # actual TypeScript SDK output from:
             # tx = setup(); 
             # tx.object(Inputs.ObjectRef(ref()));
             # const coin = tx.splitCoins(tx.gas, [100]);

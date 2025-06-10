@@ -71,11 +71,80 @@ class TransactionDataV1(Serializable):
         serializer.write_u64(int(self.gas_data.budget))
     
     @classmethod
+    def _deserialize_gas_data_with_fallback(cls, deserializer: Deserializer, sender: SuiAddress) -> GasData:
+        """
+        Deserialize gas data with custom logic that matches our custom serialization.
+        
+        This method reads gas data in the exact same order as _serialize_gas_data_with_fallback()
+        writes it: Payment → Owner → Price → Budget
+        
+        The deserialized owner represents the resolved owner (after fallback), but we need to
+        determine if it was originally null by comparing with sender. However, since the 
+        TypeScript SDK always applies the fallback during serialization, we cannot distinguish
+        between an explicitly set owner and a fallback owner from the serialized bytes alone.
+        
+        For round-trip compatibility, we set owner=None when the deserialized owner equals sender,
+        assuming it was a fallback case. This matches TypeScript SDK's JSON representation.
+        """
+        # Read in the exact same order as serialization: Payment → Owner → Price → Budget
+        
+        # Read payment objects vector
+        payment_count = deserializer.read_uleb128()
+        payment = []
+        for _ in range(payment_count):
+            payment_ref = cls._deserialize_object_ref(deserializer)
+            payment.append(payment_ref)
+        
+        # Read resolved owner address
+        resolved_owner = SuiAddress.deserialize(deserializer)
+        
+        # Read price as u64
+        price = str(deserializer.read_u64())
+        
+        # Read budget as u64  
+        budget = str(deserializer.read_u64())
+        
+        # Determine original owner value for JSON representation compatibility
+        # If resolved_owner equals sender, it was likely a fallback (owner was null)
+        # This maintains TypeScript SDK's behavior where gasData.owner can be null in JSON
+        original_owner = None if resolved_owner == sender else resolved_owner
+        
+        return GasData(
+            budget=budget,
+            price=price, 
+            payment=payment,
+            owner=original_owner
+        )
+    
+    @classmethod
+    def _deserialize_object_ref(cls, deserializer: Deserializer):
+        """
+        Helper method to deserialize ObjectRef.
+        
+        This avoids circular import issues by importing ObjectRef locally
+        and matches the deserialization pattern used elsewhere.
+        """
+        from ...types import ObjectRef
+        return ObjectRef.deserialize(deserializer)
+    
+    @classmethod
     def deserialize(cls, deserializer: Deserializer) -> 'TransactionDataV1':
-        """Deserialize transaction data V1."""
+        """
+        Deserialize transaction data V1.
+        
+        IMPORTANT: This uses custom gas data deserialization to match our custom
+        serialization logic in _serialize_gas_data_with_fallback(). We cannot use
+        standard GasData.deserialize() because it expects a different byte order
+        than what our custom serialization produces.
+        """
         transaction_kind = TransactionKind.deserialize(deserializer)
         sender = SuiAddress.deserialize(deserializer)
-        gas_data = GasData.deserialize(deserializer)
+        
+        # Use custom gas data deserialization that matches our custom serialization
+        # Our serialization order: Payment → Owner → Price → Budget
+        # Standard GasData.deserialize order: Budget → Price → Payment → Owner  
+        gas_data = cls._deserialize_gas_data_with_fallback(deserializer, sender)
+        
         expiration = TransactionExpiration.deserialize(deserializer)
         
         return cls(
