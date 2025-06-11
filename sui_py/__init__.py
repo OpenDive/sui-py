@@ -44,6 +44,11 @@ from .crypto import (
     create_private_key, import_private_key
 )
 
+# Account abstractions
+from .accounts import (
+    AbstractAccount, Account
+)
+
 # Transaction building system
 from .transactions import (
     # Builder
@@ -120,6 +125,10 @@ __all__ = [
     "Secp256k1PublicKey",
     "create_private_key",
     "import_private_key",
+    
+    # Account abstractions
+    "AbstractAccount",
+    "Account",
     
     # Transaction building
     "TransactionBuilder",
