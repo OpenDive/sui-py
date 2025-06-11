@@ -49,6 +49,12 @@ from .accounts import (
     AbstractAccount, Account
 )
 
+# HD Wallet functionality
+from .wallets import (
+    HDWallet, DerivationPath, SuiDerivationPath,
+    WalletError, InvalidMnemonicError, DerivationError
+)
+
 # Transaction building system
 from .transactions import (
     # Builder
@@ -129,6 +135,14 @@ __all__ = [
     # Account abstractions
     "AbstractAccount",
     "Account",
+    
+    # HD Wallet functionality
+    "HDWallet",
+    "DerivationPath",
+    "SuiDerivationPath", 
+    "WalletError",
+    "InvalidMnemonicError",
+    "DerivationError",
     
     # Transaction building
     "TransactionBuilder",
