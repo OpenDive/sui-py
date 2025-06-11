@@ -19,6 +19,8 @@ SuiPy – a deliciously lightweight, high-performance Python SDK for the Sui blo
   - [Development Setup](#development-setup)
 - [Quick Start](#quick-start)
   - [BCS Serialization](#bcs-serialization)
+  - [Account Management](#account-management)
+  - [HD Wallet Operations](#hd-wallet-operations)
   - [Cryptographic Operations](#cryptographic-operations)
   - [Transaction Building](#transaction-building)
   - [Coin Query API](#coin-query-api)
@@ -105,6 +107,24 @@ async with SuiClient("mainnet") as client:
   - **Comprehensive Error Handling**: Hierarchical exception system with detailed context
   - **Factory Functions**: Convenient constructors (`u8()`, `u16()`, etc.)
 
+- **Account Abstraction**: Complete account management with multi-scheme support
+  - **Account**: Single key pair accounts supporting all Sui signature schemes
+  - **AbstractAccount**: Base interface for polymorphic account usage
+  - Seamless integration with existing cryptographic primitives
+  - Account serialization and restoration for secure storage
+  - Multiple creation methods: generate, import from hex/bytes/base64
+  - Full signing and verification capabilities with automatic address derivation
+
+- **HD Wallet**: BIP32/BIP39 hierarchical deterministic wallet functionality
+  - **HDWallet**: Complete HD wallet implementation following industry standards
+  - **DerivationPath**: BIP32 derivation path utilities and validation
+  - **SuiDerivationPath**: Sui-specific derivation path standards (m/44'/784'/0'/0'/index')
+  - Mnemonic generation and validation (12, 15, 18, 21, 24 words)
+  - Multi-scheme account derivation (Ed25519, Secp256k1 from same seed)
+  - Deterministic account recovery from mnemonic phrases
+  - Account caching and management with wallet serialization
+  - Standard BIP39/BIP32 compliance for cross-platform compatibility
+
 - **Cryptographic Primitives**: Complete Ed25519 and Secp256k1 implementation with unified signature handling
   - `create_private_key()` - Generate new Ed25519 and Secp256k1 private keys
   - `import_private_key()` - Import keys from bytes or hex
@@ -151,8 +171,6 @@ async with SuiClient("mainnet") as client:
 
 ### 🚧 Coming Soon
 - Secp256r1 cryptographic scheme
-- Account abstraction with multi-scheme support
-- Mnemonic phrase support for key derivation
 - Read API (checkpoints, protocol config)
 - Write API (transaction execution)
 - Move Utils API
@@ -278,6 +296,74 @@ small_num = u8(255)
 big_num = u64(1_000_000)
 flag = boolean(True)
 data = bytes_value(b"hello world")
+```
+
+### Account Management
+```python
+from sui_py import Account, SignatureScheme
+
+# Generate accounts for different signature schemes
+ed25519_account = Account.generate(SignatureScheme.ED25519)
+secp256k1_account = Account.generate(SignatureScheme.SECP256K1)
+
+print(f"Ed25519 Address: {ed25519_account.address}")
+print(f"Secp256k1 Address: {secp256k1_account.address}")
+
+# Sign and verify messages
+message = b"Hello, Sui blockchain!"
+signature = ed25519_account.sign(message)
+is_valid = ed25519_account.verify(message, signature)
+print(f"Signature valid: {is_valid}")
+
+# Serialize account for secure storage
+account_data = ed25519_account.to_base64()
+print(f"Serialized account: {account_data}")
+
+# Restore account from serialized data
+restored_account = Account.from_base64(account_data)
+print(f"Restored address: {restored_account.address}")
+
+# Import account from existing private key
+private_key_hex = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+imported_account = Account.from_hex(private_key_hex, SignatureScheme.ED25519)
+```
+
+### HD Wallet Operations
+```python
+from sui_py import HDWallet, SignatureScheme, SuiDerivationPath
+
+# Generate a new HD wallet with mnemonic
+wallet = HDWallet.generate()
+print(f"Mnemonic: {wallet.mnemonic}")
+
+# Or restore from existing mnemonic
+mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+wallet = HDWallet.from_mnemonic(mnemonic)
+
+# Derive accounts for different signature schemes
+ed25519_account = wallet.derive_account(0, SignatureScheme.ED25519)
+secp256k1_account = wallet.derive_account(0, SignatureScheme.SECP256K1)
+
+print(f"Ed25519 Account 0: {ed25519_account.address}")
+print(f"Secp256k1 Account 0: {secp256k1_account.address}")
+
+# Both accounts derived from the same index will be deterministic
+# Re-deriving the same account returns identical results
+same_account = wallet.derive_account(0, SignatureScheme.ED25519)
+assert ed25519_account.address == same_account.address
+
+# Get multiple accounts at once
+accounts = wallet.get_accounts(SignatureScheme.ED25519, count=5)
+for i, account in enumerate(accounts):
+    print(f"Account {i}: {account.address}")
+
+# Work with custom derivation paths
+custom_path = SuiDerivationPath.account_path(2)  # m/44'/784'/0'/0'/2'
+custom_account = wallet.derive_account_from_path(custom_path, SignatureScheme.ED25519)
+
+# Serialize wallet for secure storage (without mnemonic for security)
+wallet_data = wallet.to_dict()
+# Note: This excludes the mnemonic for security - store it separately!
 ```
 
 ### Cryptographic Operations
@@ -677,6 +763,28 @@ try:
 except ValueError as e:
     print(f"Transaction validation failed: {e}")
 
+# Account and HD Wallet Error Handling
+from sui_py import Account, HDWallet, InvalidDerivationPathError, WalletError
+
+try:
+    # Invalid private key format
+    account = Account.from_hex("invalid_key", SignatureScheme.ED25519)
+except ValueError as e:
+    print(f"Invalid private key: {e}")
+
+try:
+    # Invalid mnemonic phrase
+    wallet = HDWallet.from_mnemonic("invalid mnemonic phrase")
+except ValueError as e:
+    print(f"Invalid mnemonic: {e}")
+
+try:
+    # Invalid derivation path
+    from sui_py.wallets.derivation import DerivationPath
+    path = DerivationPath.from_string("invalid/path")
+except InvalidDerivationPathError as e:
+    print(f"Invalid derivation path: {e}")
+
 # BCS Error Handling
 try:
     data = serialize(U8(256))  # Overflow error
@@ -717,6 +825,8 @@ async with SuiClient("testnet") as client:
 ### Quick Examples
 
 See the `examples/` directory for complete usage examples:
+- `account_usage.py` - Complete Account abstraction examples with multi-scheme support *(no RPC required)*
+- `hd_wallet_usage.py` - HD Wallet operations including mnemonic generation, account derivation, and management *(no RPC required)*
 - `transaction_building_example.py` - Comprehensive transaction building with PTBs, result chaining, and BCS serialization
 - `coin_query_example.py` - Comprehensive Coin Query API usage *(requires RPC)*
 - `extended_api_example.py` - Extended API usage with objects, events, and transactions *(requires RPC)*
