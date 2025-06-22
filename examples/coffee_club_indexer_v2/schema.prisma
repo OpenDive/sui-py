@@ -1,0 +1,47 @@
+// Prisma schema for Coffee Club Event Indexer
+// This schema mirrors the TypeScript implementation for the coffee club system
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+/// Database configuration
+/// Using SQLite for simplicity, can be changed to PostgreSQL for production
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Cafes registered in the system
+model Cafe {
+  objectId    String    @id
+  creator     String
+  name        String?
+  location    String?
+  description String?
+  status      String?
+  createdAt   DateTime
+  updatedAt   DateTime?
+
+  @@index([creator])
+  @@index([status])
+}
+
+/// Coffee orders placed at cafes
+model CoffeeOrder {
+  objectId  String    @id
+  status    String
+  createdAt DateTime
+  updatedAt DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Saves the latest cursor for a given event type
+model Cursor {
+  id       String @id
+  eventSeq String
+  txDigest String
+} 
