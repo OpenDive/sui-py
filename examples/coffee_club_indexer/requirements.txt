@@ -1,0 +1,20 @@
+# Requirements for the Coffee Club Event Indexer
+# This example demonstrates coffee club event processing with coffee machine integration
+
+# Core dependencies
+prisma>=0.11.0
+
+# Optional: For PostgreSQL support
+# asyncpg>=0.29.0
+# psycopg2-binary>=2.9.0
+
+# Note: asyncio subprocess support is part of Python standard library
+# No additional packages needed for async subprocess operations
+
+# Development dependencies
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Coffee machine integration (if using direct BLE control)
+# bleak>=0.21.0  # For Bluetooth Low Energy
+# pexpect>=4.8.0  # For advanced subprocess control 
