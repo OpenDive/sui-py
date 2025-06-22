@@ -75,7 +75,7 @@ def get_config() -> IndexerConfig:
     # Coffee club contract configuration
     package_id = os.getenv(
         "PACKAGE_ID", 
-        "0x..." # Replace with actual coffee club package ID
+        "0x7072e9cc59fe353374e0ef5822e98165ec441bcdcb1cfa10f89b40c9285965f3" # Replace with actual coffee club package ID
     )
     
     # Coffee machine configuration
