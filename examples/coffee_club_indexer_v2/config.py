@@ -28,6 +28,15 @@ class CoffeeMachine:
 
 
 @dataclass
+class VoiceAgent:
+    """Configuration for voice agent integration."""
+    websocket_url: str
+    enabled: bool = True
+    connection_timeout: int = 5  # seconds
+    max_retries: int = 3
+
+
+@dataclass
 class IndexerConfig:
     """Main coffee club indexer configuration."""
     # Network settings
@@ -39,6 +48,9 @@ class IndexerConfig:
     
     # Coffee machine configuration
     coffee_machine: CoffeeMachine
+    
+    # Voice agent configuration
+    voice_agent: VoiceAgent
     
     # Database configuration (Prisma uses DATABASE_URL environment variable)
     database_url: str
@@ -86,6 +98,10 @@ def get_config() -> IndexerConfig:
     )
     machine_enabled = os.getenv("COFFEE_MACHINE_ENABLED", "true").lower() == "true"
     
+    # Voice agent configuration
+    websocket_url = os.getenv("VOICE_AGENT_WEBSOCKET_URL", "ws://localhost:8080")
+    voice_agent_enabled = os.getenv("VOICE_AGENT_ENABLED", "true").lower() == "true"
+    
     # Database configuration (Prisma reads DATABASE_URL automatically)
     database_url = os.getenv("DATABASE_URL", "file:./coffee_club.db")
     
@@ -104,6 +120,10 @@ def get_config() -> IndexerConfig:
             mac_address=mac_address,
             controller_path=controller_path,
             enabled=machine_enabled
+        ),
+        voice_agent=VoiceAgent(
+            websocket_url=websocket_url,
+            enabled=voice_agent_enabled
         ),
         database_url=database_url,
         polling_interval_ms=polling_interval,

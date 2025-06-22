@@ -11,6 +11,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import json
+import asyncio
+import websockets
 
 from prisma import Prisma
 from prisma.models import CoffeeOrder
@@ -68,6 +71,81 @@ class CoffeeOrderUpdated:
             self.status = str(status_data)  # Fallback for simple strings
 
 
+class VoiceAgentNotifier:
+    """WebSocket client for notifying voice agent of new coffee orders."""
+    
+    def __init__(self, enabled: bool = True, websocket_url: str = "ws://localhost:8765"):
+        self.enabled = enabled
+        self.websocket_url = websocket_url
+        self.max_retries = 3
+        self.retry_delay = 1.0  # seconds
+        
+    async def notify_new_order(self, order_id: str, coffee_type: str, priority: str = "normal") -> bool:
+        """
+        Send new order notification to voice agent via WebSocket.
+        
+        Args:
+            order_id: Unique order identifier
+            coffee_type: Type of coffee ordered
+            priority: Priority level (normal, urgent, low)
+            
+        Returns:
+            True if notification sent successfully, False otherwise
+        """
+        if not self.enabled:
+            logger.debug("Voice agent notifications disabled, skipping")
+            return True
+            
+        message = {
+            "type": "NEW_COFFEE_REQUEST",
+            "order_id": order_id,
+            "coffee_type": coffee_type,
+            "priority": priority,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(f"📡 Sending order notification to voice agent (attempt {attempt}/{self.max_retries})")
+                
+                # Connect to voice agent WebSocket server
+                async with websockets.connect(
+                    self.websocket_url,
+                    ping_timeout=5,
+                    close_timeout=5
+                ) as websocket:
+                    # Send notification
+                    await websocket.send(json.dumps(message))
+                    logger.info(f"📨 Sent: {message}")
+                    
+                    # Wait for confirmation
+                    response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                    response_data = json.loads(response)
+                    
+                    if response_data.get("status") == "success":
+                        logger.info(f"✅ Voice agent confirmed order notification: {coffee_type} for order {order_id[:8]}...")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ Voice agent returned error: {response_data}")
+                        return False
+                        
+            except asyncio.TimeoutError:
+                logger.warning(f"⏱️ Timeout sending notification to voice agent (attempt {attempt}/{self.max_retries})")
+            except websockets.exceptions.ConnectionRefused:
+                logger.warning(f"🔌 Voice agent not available (attempt {attempt}/{self.max_retries})")
+            except websockets.exceptions.WebSocketException as e:
+                logger.warning(f"🌐 WebSocket error (attempt {attempt}/{self.max_retries}): {e}")
+            except Exception as e:
+                logger.error(f"❌ Unexpected error sending notification (attempt {attempt}/{self.max_retries}): {e}")
+            
+            # Wait before retry (except on last attempt)
+            if attempt < self.max_retries:
+                await asyncio.sleep(self.retry_delay)
+        
+        logger.error(f"❌ Failed to notify voice agent after {self.max_retries} attempts")
+        return False
+
+
 class OrderProcessor:
     """Processes coffee orders and manages coffee machine integration."""
     
@@ -78,6 +156,12 @@ class OrderProcessor:
             mac_address=CONFIG.coffee_machine.mac_address,
             controller_path=CONFIG.coffee_machine.controller_path,
             enabled=CONFIG.coffee_machine.enabled
+        )
+        
+        # Initialize voice agent notifier
+        self.voice_agent_notifier = VoiceAgentNotifier(
+            enabled=CONFIG.voice_agent.enabled,
+            websocket_url=CONFIG.voice_agent.websocket_url
         )
     
     async def process_order_created(self, order_created: CoffeeOrderCreated) -> None:
@@ -100,6 +184,17 @@ class OrderProcessor:
         )
         
         logger.info(f"✅ Successfully created order {order_created.order_id}")
+        
+        # Notify voice agent of new order
+        try:
+            await self.voice_agent_notifier.notify_new_order(
+                order_id=order_created.order_id,
+                coffee_type=order_created.coffee_type,
+                priority="normal"
+            )
+        except Exception as e:
+            # Don't let voice agent notification failures affect order processing
+            logger.error(f"⚠️ Failed to notify voice agent, but order processing continues: {e}")
     
     async def process_order_updated(self, order_updated: CoffeeOrderUpdated) -> None:
         """Process an updated coffee order and trigger coffee machine if needed."""
