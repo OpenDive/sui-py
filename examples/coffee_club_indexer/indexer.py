@@ -91,17 +91,17 @@ class CoffeeClubIndexer:
         self.events_to_track: List[EventTracker] = [
             EventTracker(
                 type=f"{package_id}::coffee_club::CafeCreated",
-                filter=EventFilter.by_move_event_type(f"{package_id}::coffee_club::CafeCreated"),
+                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CafeCreated"),
                 callback=handle_cafe_events
             ),
             EventTracker(
                 type=f"{package_id}::coffee_club::CoffeeOrderCreated", 
-                filter=EventFilter.by_move_event_type(f"{package_id}::coffee_club::CoffeeOrderCreated"),
+                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CoffeeOrderCreated"),
                 callback=handle_order_events
             ),
             EventTracker(
                 type=f"{package_id}::coffee_club::CoffeeOrderUpdated",
-                filter=EventFilter.by_move_event_type(f"{package_id}::coffee_club::CoffeeOrderUpdated"),
+                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CoffeeOrderUpdated"),
                 callback=handle_order_events
             )
         ]
@@ -237,7 +237,7 @@ class CoffeeClubIndexer:
             logger.debug(f"Querying events for {tracker.type} with cursor: {cursor}")
             
             # Query events from the blockchain
-            result = await self.client.query_events(
+            result = await self.client.extended_api.query_events(
                 query=tracker.filter,
                 cursor=cursor,
                 limit=self.limit,
