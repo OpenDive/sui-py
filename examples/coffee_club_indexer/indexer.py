@@ -1,13 +1,25 @@
+#!/usr/bin/env python3
 """
-Main event indexer for the Coffee Club Event Indexer.
+Coffee Club Event Indexer
 
-This module implements the core event indexing logic, polling the Sui blockchain
-for coffee club events and processing them using typed SuiEvent objects and handlers.
+A comprehensive event indexer for the Coffee Club smart contract that processes
+cafe creation and coffee order events, integrates with coffee machines, and
+maintains a persistent database of all activities.
+
+This indexer demonstrates real-time event processing, external system integration,
+and robust error handling in a production-ready SuiPy application.
 """
+
+# Handle imports when running from within SDK source tree
+import sys
+import os
+# Add the SDK root (sui-py directory) to Python path
+sdk_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if sdk_root not in sys.path:
+    sys.path.insert(0, sdk_root)
 
 import asyncio
 import logging
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -19,9 +31,9 @@ if str(current_dir) not in sys.path:
 
 # Auto-setup integration - run BEFORE importing Prisma
 try:
-    from setup import setup_with_fallback, ensure_prisma_client
+    from database_setup import setup_with_fallback, ensure_prisma_client
 except ImportError:
-    from .setup import setup_with_fallback, ensure_prisma_client
+    from .database_setup import setup_with_fallback, ensure_prisma_client
 
 # Ensure Prisma client is ready before importing
 print("Checking database client setup...")
