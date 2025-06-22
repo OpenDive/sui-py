@@ -29,19 +29,13 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-# Auto-setup integration - run BEFORE importing Prisma
+# Auto-setup integration
 try:
     from database_setup import setup_with_fallback, ensure_prisma_client
 except ImportError:
     from .database_setup import setup_with_fallback, ensure_prisma_client
 
-# Ensure Prisma client is ready before importing
-print("Checking database client setup...")
-if not ensure_prisma_client():
-    print("❌ Failed to set up database client. Please run 'python setup.py' manually.")
-    sys.exit(1)
-
-# Now safe to import Prisma
+# Import Prisma (setup will happen in start() method)
 from prisma import Prisma
 from prisma.models import Cursor
 
