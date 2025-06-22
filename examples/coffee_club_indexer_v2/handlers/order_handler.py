@@ -145,6 +145,83 @@ class VoiceAgentNotifier:
         logger.error(f"❌ Failed to notify voice agent after {self.max_retries} attempts")
         return False
 
+    async def notify_order_update(self, order_id: str, coffee_type: str, status: str, priority: str = "normal") -> bool:
+        """
+        Send order status update notification to voice agent via WebSocket.
+        
+        Args:
+            order_id: Unique order identifier
+            coffee_type: Type of coffee ordered
+            status: New order status (Ready, Processing, Completed, etc.)
+            priority: Priority level (normal, urgent, low)
+            
+        Returns:
+            True if notification sent successfully, False otherwise
+        """
+        if not self.enabled:
+            logger.debug("Voice agent notifications disabled, skipping")
+            return True
+            
+        # Determine message type based on status
+        if status == "Ready":
+            message_type = "ORDER_READY"
+        elif status == "Processing":
+            message_type = "ORDER_PROCESSING"
+        elif status == "Completed":
+            message_type = "ORDER_COMPLETED"
+        else:
+            message_type = "ORDER_UPDATED"
+        
+        message = {
+            "type": message_type,
+            "order_id": order_id,
+            "coffee_type": coffee_type,
+            "status": status,
+            "priority": priority,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(f"📡 Sending order update notification to voice agent (attempt {attempt}/{self.max_retries})")
+                
+                # Connect to voice agent WebSocket server
+                async with websockets.connect(
+                    self.websocket_url,
+                    ping_timeout=5,
+                    close_timeout=5
+                ) as websocket:
+                    # Send notification
+                    await websocket.send(json.dumps(message))
+                    logger.info(f"📨 Sent update: {message}")
+                    
+                    # Wait for confirmation
+                    response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                    response_data = json.loads(response)
+                    
+                    if response_data.get("status") == "success":
+                        logger.info(f"✅ Voice agent confirmed order update: {coffee_type} -> {status} for order {order_id[:8]}...")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ Voice agent returned error: {response_data}")
+                        return False
+                        
+            except asyncio.TimeoutError:
+                logger.warning(f"⏱️ Timeout sending update notification to voice agent (attempt {attempt}/{self.max_retries})")
+            except websockets.exceptions.ConnectionRefused:
+                logger.warning(f"🔌 Voice agent not available (attempt {attempt}/{self.max_retries})")
+            except websockets.exceptions.WebSocketException as e:
+                logger.warning(f"🌐 WebSocket error (attempt {attempt}/{self.max_retries}): {e}")
+            except Exception as e:
+                logger.error(f"❌ Unexpected error sending update notification (attempt {attempt}/{self.max_retries}): {e}")
+            
+            # Wait before retry (except on last attempt)
+            if attempt < self.max_retries:
+                await asyncio.sleep(self.retry_delay)
+        
+        logger.error(f"❌ Failed to notify voice agent of order update after {self.max_retries} attempts")
+        return False
+
 
 class OrderProcessor:
     """Processes coffee orders and manages coffee machine integration."""
@@ -226,6 +303,19 @@ class OrderProcessor:
         )
         
         logger.info(f"📊 Updated order {order_id} status to {new_status}")
+        
+        # Notify voice agent about order status update for important statuses
+        if new_status in ["Ready", "Processing", "Completed"] and order.coffeeType:
+            try:
+                await self.voice_agent_notifier.notify_order_update(
+                    order_id=order_id,
+                    coffee_type=order.coffeeType,
+                    status=new_status,
+                    priority="urgent" if new_status == "Ready" else "normal"
+                )
+            except Exception as e:
+                # Don't let voice agent notification failures affect order processing
+                logger.error(f"⚠️ Failed to notify voice agent of order update, but processing continues: {e}")
         
         # If status is "Processing", trigger coffee machine using stored coffee type
         if new_status == "Processing" and order.coffeeType:
