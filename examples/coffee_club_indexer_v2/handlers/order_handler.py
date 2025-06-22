@@ -41,6 +41,7 @@ class CoffeeOrderCreated:
     
     def __init__(self, data: Dict[str, Any]):
         self.order_id = data["order_id"]
+        self.coffee_type = data["coffee_type"]  # NEW: Available in event
         # Additional fields might be present
         self.cafe_id = data.get("cafe_id")
         self.customer = data.get("customer")
@@ -51,8 +52,7 @@ class CoffeeOrderUpdated:
     
     def __init__(self, data: Dict[str, Any]):
         self.order_id = data["order_id"]
-        # Status is optional in the event, we'll fetch from blockchain if needed
-        self.status = data.get("status")
+        self.status = data["status"]  # NEW: Available directly in event
 
 
 class OrderProcessor:
@@ -77,6 +77,7 @@ class OrderProcessor:
                 "create": {
                     "objectId": order_created.order_id,
                     "status": "Created",
+                    "coffeeType": order_created.coffee_type,  # NEW: Store coffee type from event
                     "createdAt": datetime.now(),
                 },
                 "update": {
@@ -90,9 +91,10 @@ class OrderProcessor:
     async def process_order_updated(self, order_updated: CoffeeOrderUpdated) -> None:
         """Process an updated coffee order and trigger coffee machine if needed."""
         order_id = order_updated.order_id
-        logger.info(f"🔄 Processing order update for {order_id}")
+        new_status = order_updated.status
+        logger.info(f"🔄 Processing order update for {order_id} to status {new_status}")
         
-        # Get current order from database
+        # Get current order from database to check for duplicates and get coffee type
         order = await self.db.coffeeorder.find_unique(
             where={"objectId": order_id}
         )
@@ -101,55 +103,58 @@ class OrderProcessor:
             logger.error(f"❌ Order {order_id} not found in database")
             return
         
-        # Check if the order is already being processed to avoid duplicates
-        if order.status == "Processing":
-            logger.info(f"⚠️ Order {order_id} is already being processed, skipping")
+        # Check if the order is already at this status to avoid duplicates
+        if order.status == new_status:
+            logger.info(f"⚠️ Order {order_id} already has status {new_status}, skipping")
             return
         
-        # Fetch the full order object from the blockchain
+        # Update order status in database (no blockchain fetch needed!)
+        await self.db.coffeeorder.update(
+            where={"objectId": order_id},
+            data={
+                "status": new_status,
+                "updatedAt": datetime.now(),
+            }
+        )
+        
+        logger.info(f"📊 Updated order {order_id} status to {new_status}")
+        
+        # If status is "Processing", trigger coffee machine using stored coffee type
+        if new_status == "Processing" and order.coffeeType:
+            await self._trigger_coffee_machine_simple(order_id, order.coffeeType)
+    
+    async def _trigger_coffee_machine_simple(self, order_id: str, coffee_type: str) -> None:
+        """Simplified coffee machine trigger using stored coffee_type."""
+        logger.info(f"🚀 Triggering coffee machine for order {order_id}")
+        
         try:
-            order_object = await self.client.get_object(
-                object_id=order_id,
-                options={"show_content": True}
-            )
+            # Map coffee type enum to machine command
+            coffee_type_mapped = self._map_coffee_type(coffee_type)
             
-            if not order_object or not order_object.data or not order_object.data.content:
-                logger.error(f"❌ Failed to fetch order {order_id} from blockchain")
-                return
+            logger.info(f"☕ Making {coffee_type_mapped} for order {order_id}")
             
-            # Extract status from blockchain object
-            content = order_object.data.content
-            if not hasattr(content, 'fields') or not content.fields:
-                logger.error(f"❌ Order {order_id} missing fields in blockchain object")
-                return
+            # Trigger coffee machine
+            success = await self.coffee_machine.make_coffee(coffee_type_mapped, order_id)
             
-            fields = content.fields
-            
-            # Extract status
-            new_status = "Created"  # Default status
-            if "status" in fields and isinstance(fields["status"], dict):
-                status_data = fields["status"]
-                if "variant" in status_data:
-                    new_status = status_data["variant"]
-            
-            # Update order status in database
-            await self.db.coffeeorder.update(
-                where={"objectId": order_id},
-                data={
-                    "status": new_status,
-                    "updatedAt": datetime.now(),
-                }
-            )
-            
-            logger.info(f"📊 Updated order {order_id} status to {new_status}")
-            
-            # If status is "Processing", trigger coffee machine
-            if new_status == "Processing":
-                await self._trigger_coffee_machine(order_id, order_object.data)
+            if success:
+                logger.info(f"✅ Successfully triggered coffee machine for order {order_id}")
+            else:
+                logger.error(f"❌ Failed to trigger coffee machine for order {order_id}")
                 
         except Exception as e:
-            logger.error(f"❌ Failed to process order update for {order_id}: {e}")
-            raise
+            logger.error(f"❌ Error triggering coffee machine for order {order_id}: {e}")
+    
+    def _map_coffee_type(self, coffee_type: str) -> str:
+        """Map new CoffeeType enum values to machine commands."""
+        mapping = {
+            "Espresso": "espresso",
+            "Americano": "americano", 
+            "Doppio": "doppio",      # NEW
+            "Long": "long",          # NEW
+            "HotWater": "hotwater",  # NEW  
+            "Coffee": "coffee"       # NEW
+        }
+        return mapping.get(coffee_type, "espresso")  # Default fallback
     
     async def _trigger_coffee_machine(self, order_id: str, order_data: Any) -> None:
         """Trigger the coffee machine for a processing order."""
@@ -211,7 +216,12 @@ async def handle_order_events(events: List[SuiEvent], event_type: str, db: Prism
                 continue
             
             data = event.parsed_json
-            logger.debug(f"📊 Order event data: {data}")
+            logger.info(f"📊 RAW ORDER EVENT DATA: {data}")
+            logger.info(f"📊 Event type: {event.type}")
+            if "coffee_type" in data:
+                logger.info(f"📊 Raw coffee_type: {data['coffee_type']} (type: {type(data['coffee_type'])})")
+            if "status" in data:
+                logger.info(f"📊 Raw status: {data['status']} (type: {type(data['status'])})")
             
             try:
                 # Handle different order event types

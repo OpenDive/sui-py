@@ -3,6 +3,12 @@ Cafe event handler for the Coffee Club Event Indexer.
 
 This module handles CafeCreated events emitted by the coffee club contract,
 processing cafe creation events using typed SuiEvent objects.
+
+TODO: Update for new SuiHubCafe contract:
+- CafeCreated event only contains cafe_id + creator (no name/location/description)
+- Need to fetch full SuiHubCafe object from blockchain for complete cafe details
+- Handle owners vector, managers vector from SuiHubCafe struct
+- Map CafeStatus enum (Open/Closed) instead of hardcoded "active"
 """
 
 import logging

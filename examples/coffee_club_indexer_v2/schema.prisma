@@ -14,6 +14,10 @@ datasource db {
 }
 
 /// Cafes registered in the system
+/// TODO: Update for new SuiHubCafe structure:
+/// - Handle owners vector, managers vector  
+/// - Map CafeStatus enum (Open/Closed)
+/// - CafeCreated event only has cafe_id + creator, need to fetch full object
 model Cafe {
   objectId    String    @id
   creator     String
@@ -30,10 +34,11 @@ model Cafe {
 
 /// Coffee orders placed at cafes
 model CoffeeOrder {
-  objectId  String    @id
-  status    String
-  createdAt DateTime
-  updatedAt DateTime?
+  objectId   String    @id
+  status     String
+  coffeeType String?
+  createdAt  DateTime
+  updatedAt  DateTime?
 
   @@index([status])
   @@index([createdAt])

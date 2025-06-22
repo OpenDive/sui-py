@@ -90,18 +90,18 @@ class CoffeeClubIndexer:
         package_id = CONFIG.coffee_club_contract.package_id
         self.events_to_track: List[EventTracker] = [
             EventTracker(
-                type=f"{package_id}::coffee_club::CafeCreated",
-                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CafeCreated"),
+                type=f"{package_id}::suihub_cafe::CafeCreated",
+                filter=EventFilter.by_event_type(f"{package_id}::suihub_cafe::CafeCreated"),
                 callback=handle_cafe_events
             ),
             EventTracker(
-                type=f"{package_id}::coffee_club::CoffeeOrderCreated", 
-                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CoffeeOrderCreated"),
+                type=f"{package_id}::suihub_cafe::CoffeeOrderCreated", 
+                filter=EventFilter.by_event_type(f"{package_id}::suihub_cafe::CoffeeOrderCreated"),
                 callback=handle_order_events
             ),
             EventTracker(
-                type=f"{package_id}::coffee_club::CoffeeOrderUpdated",
-                filter=EventFilter.by_event_type(f"{package_id}::coffee_club::CoffeeOrderUpdated"),
+                type=f"{package_id}::suihub_cafe::CoffeeOrderUpdated",
+                filter=EventFilter.by_event_type(f"{package_id}::suihub_cafe::CoffeeOrderUpdated"),
                 callback=handle_order_events
             )
         ]
