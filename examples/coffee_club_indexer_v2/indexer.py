@@ -22,7 +22,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 # Add the current directory to Python path for relative imports
 current_dir = Path(__file__).parent
@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EventExecutionResult:
     """Result of executing an event job."""
-    cursor: Optional[str]
+    cursor: Optional[Dict[str, Any]]
     has_next_page: bool
 
 
@@ -168,7 +168,7 @@ class CoffeeClubIndexer:
                 if not task.done():
                     task.cancel()
     
-    async def _run_event_job(self, tracker: EventTracker, cursor: Optional[str]) -> None:
+    async def _run_event_job(self, tracker: EventTracker, cursor: Optional[Dict[str, Any]]) -> None:
         """
         Run an event job continuously.
         
@@ -215,7 +215,7 @@ class CoffeeClubIndexer:
     async def _execute_event_job(
         self, 
         tracker: EventTracker, 
-        cursor: Optional[str]
+        cursor: Optional[Dict[str, Any]]
     ) -> EventExecutionResult:
         """
         Execute a single event job iteration.
@@ -285,7 +285,7 @@ class CoffeeClubIndexer:
         ]
         return any(indicator in error_msg for indicator in transient_indicators)
     
-    async def _get_latest_cursor(self, tracker: EventTracker) -> Optional[str]:
+    async def _get_latest_cursor(self, tracker: EventTracker) -> Optional[Dict[str, Any]]:
         """
         Get the latest cursor for an event tracker.
         
@@ -293,7 +293,7 @@ class CoffeeClubIndexer:
             tracker: Event tracker configuration
             
         Returns:
-            Latest cursor string or None if not found
+            Latest cursor dict or None if not found
         """
         try:
             logger.debug(f"Retrieving latest cursor for {tracker.type}")
@@ -302,10 +302,13 @@ class CoffeeClubIndexer:
             )
             
             if cursor:
-                # Construct cursor from eventSeq and txDigest
-                cursor_str = f"{cursor.eventSeq}:{cursor.txDigest}"
-                logger.debug(f"Retrieved cursor for {tracker.type}: {cursor_str}")
-                return cursor_str
+                # Reconstruct cursor as dict (what Sui API expects)
+                cursor_dict = {
+                    'txDigest': cursor.txDigest,
+                    'eventSeq': cursor.eventSeq
+                }
+                logger.debug(f"Retrieved cursor for {tracker.type}: {cursor_dict}")
+                return cursor_dict
             else:
                 logger.debug(f"No cursor found for {tracker.type}")
                 return None
@@ -317,38 +320,58 @@ class CoffeeClubIndexer:
     async def _save_latest_cursor(
         self, 
         tracker: EventTracker, 
-        cursor: str
+        cursor: Union[str, Dict[str, Any]]
     ) -> None:
         """
         Save the latest cursor for an event tracker.
         
         Args:
             tracker: Event tracker configuration
-            cursor: Cursor string to save
+            cursor: Cursor (can be dict or string)
         """
         try:
-            # Parse cursor format "eventSeq:txDigest"
-            if ":" in cursor:
-                event_seq, tx_digest = cursor.split(":", 1)
+            logger.debug(f"🗂️  Saving cursor for {tracker.type}: {cursor} (type: {type(cursor)})")
+            
+            # Handle cursor based on its type
+            if isinstance(cursor, dict):
+                # Cursor is already a dict from Sui API
+                event_seq = cursor.get('eventSeq', '0')
+                tx_digest = cursor.get('txDigest', '')
+            elif isinstance(cursor, str):
+                # Handle string formats
+                if cursor.startswith('{') and cursor.endswith('}'):
+                    # JSON string format
+                    import json
+                    json_cursor = cursor.replace("'", '"')
+                    cursor_dict = json.loads(json_cursor)
+                    event_seq = cursor_dict.get('eventSeq', '0')
+                    tx_digest = cursor_dict.get('txDigest', '')
+                elif ":" in cursor:
+                    # Legacy format "eventSeq:txDigest"
+                    event_seq, tx_digest = cursor.split(":", 1)
+                else:
+                    # Fallback - treat as event sequence
+                    event_seq = cursor
+                    tx_digest = cursor
             else:
-                # Fallback format
-                event_seq = cursor
-                tx_digest = cursor
+                raise ValueError(f"Unsupported cursor type: {type(cursor)}")
             
             data = {
-                "eventSeq": event_seq,
-                "txDigest": tx_digest,
+                "eventSeq": str(event_seq),
+                "txDigest": str(tx_digest),
             }
             
-            logger.debug(f"Saving cursor for {tracker.type}: {data}")
+            logger.debug(f"🗂️  Parsed cursor data: {data}")
             
-            await self.db.cursor.upsert(
+            result = await self.db.cursor.upsert(
                 where={"id": tracker.type},
                 data={
                     "create": {"id": tracker.type, **data},
                     "update": data
                 }
             )
+            
+            logger.debug(f"🗂️  Successfully saved cursor for {tracker.type}")
             
         except Exception as e:
             logger.error(f"Error saving cursor for {tracker.type}: {e}")
