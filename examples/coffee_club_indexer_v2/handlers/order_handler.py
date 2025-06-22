@@ -41,7 +41,14 @@ class CoffeeOrderCreated:
     
     def __init__(self, data: Dict[str, Any]):
         self.order_id = data["order_id"]
-        self.coffee_type = data["coffee_type"]  # NEW: Available in event
+        
+        # Extract coffee_type from Move enum object
+        coffee_type_data = data["coffee_type"]
+        if isinstance(coffee_type_data, dict) and "variant" in coffee_type_data:
+            self.coffee_type = coffee_type_data["variant"]  # Extract "Espresso" from {'variant': 'Espresso', 'fields': {}}
+        else:
+            self.coffee_type = str(coffee_type_data)  # Fallback for simple strings
+            
         # Additional fields might be present
         self.cafe_id = data.get("cafe_id")
         self.customer = data.get("customer")
@@ -52,7 +59,13 @@ class CoffeeOrderUpdated:
     
     def __init__(self, data: Dict[str, Any]):
         self.order_id = data["order_id"]
-        self.status = data["status"]  # NEW: Available directly in event
+        
+        # Extract status from Move enum object
+        status_data = data["status"]
+        if isinstance(status_data, dict) and "variant" in status_data:
+            self.status = status_data["variant"]  # Extract "Processing" from {'variant': 'Processing', 'fields': {}}
+        else:
+            self.status = str(status_data)  # Fallback for simple strings
 
 
 class OrderProcessor:
