@@ -12,10 +12,14 @@ from pathlib import Path
 try:
     from cafe_handler import handle_cafe_events
     from order_handler import handle_order_events
+    from voice_agent_notifier import VoiceAgentNotifier
+    from mock_voice_notifications import MockNotificationGenerator
 except ImportError:
     try:
         from .cafe_handler import handle_cafe_events
         from .order_handler import handle_order_events
+        from .voice_agent_notifier import VoiceAgentNotifier
+        from .mock_voice_notifications import MockNotificationGenerator
     except ImportError:
         # Add current directory to path for direct execution
         current_dir = Path(__file__).parent
@@ -23,8 +27,12 @@ except ImportError:
             sys.path.insert(0, str(current_dir))
         from cafe_handler import handle_cafe_events
         from order_handler import handle_order_events
+        from voice_agent_notifier import VoiceAgentNotifier
+        from mock_voice_notifications import MockNotificationGenerator
 
 __all__ = [
     "handle_cafe_events",
-    "handle_order_events"
+    "handle_order_events",
+    "VoiceAgentNotifier",
+    "MockNotificationGenerator"
 ] 

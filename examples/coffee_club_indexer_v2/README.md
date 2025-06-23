@@ -6,6 +6,8 @@ A real-time event indexer for coffee club operations on the Sui blockchain, buil
 
 - **Real-time event processing** for coffee club operations using typed `SuiEvent` objects
 - **Coffee machine integration** for automated order fulfillment
+- **Voice agent notifications** via WebSocket for real-time order updates
+- **Mock notification system** for testing voice agent integration
 - **Automatic cursor tracking** and resumption from database
 - **Database persistence** with Prisma Client Python
 - **Auto-setup** - works out of the box with zero configuration
@@ -39,6 +41,10 @@ export PACKAGE_ID=0x123...          # Your coffee club package ID
 export MAC_ADDRESS=AA:BB:CC:DD:EE:FF # Coffee machine MAC address
 export CONTROLLER_PATH=../delonghi_controller/src/delonghi_controller.py
 export COFFEE_MACHINE_ENABLED=true  # Enable/disable machine integration
+
+# Voice agent settings
+export VOICE_AGENT_WEBSOCKET_URL=ws://localhost:8080  # Voice agent WebSocket URL
+export VOICE_AGENT_ENABLED=true     # Enable/disable voice notifications
 
 # Database settings
 export DATABASE_URL=file:./coffee_club.db    # SQLite file path
@@ -91,6 +97,32 @@ Supported coffee types:
 - `coffee`
 - `hotwater`
 
+### Voice Agent Integration
+
+The indexer can send real-time notifications to a voice agent via WebSocket for enhanced user experience:
+
+**New Order Notifications:**
+- Sent when `CoffeeOrderCreated` events are processed
+- Includes order ID, coffee type, and priority level
+
+**Order Status Updates:**
+- Sent when `CoffeeOrderUpdated` events are processed  
+- Includes status changes (Processing, Ready, Completed)
+- Automatically sets priority to "urgent" for Ready orders
+
+**Message Format:**
+```json
+{
+  "type": "NEW_COFFEE_REQUEST",
+  "order_id": "0x123...",
+  "coffee_type": "Espresso",
+  "priority": "normal",
+  "timestamp": "2024-01-01T12:00:00"
+}
+```
+
+The voice agent can acknowledge notifications and provide status confirmations.
+
 ### Database Schema
 
 ```prisma
@@ -126,6 +158,8 @@ model Cursor {
 - **`handlers/`** - Event processing modules
   - `cafe_handler.py` - Processes cafe creation events
   - `order_handler.py` - Processes order events and triggers coffee machine
+  - `voice_agent_notifier.py` - WebSocket-based voice agent notifications
+  - `mock_voice_notifications.py` - Mock notification system for testing
 - **`coffee_machine/`** - Coffee machine integration
   - `controller.py` - Async coffee machine controller
 - **`schema.prisma`** - Database schema definition
@@ -149,6 +183,20 @@ export CONTROLLER_PATH=../delonghi_controller/src/delonghi_controller.py
 ```
 
 When disabled (`COFFEE_MACHINE_ENABLED=false`), the indexer will still process events but skip coffee machine operations.
+
+### Voice Agent Settings
+
+The indexer supports integration with voice agents for real-time order notifications:
+
+```bash
+# Enable voice agent notifications
+export VOICE_AGENT_ENABLED=true
+
+# Voice agent WebSocket URL
+export VOICE_AGENT_WEBSOCKET_URL=ws://localhost:8080
+```
+
+When disabled (`VOICE_AGENT_ENABLED=false`), the indexer will process events normally but skip voice agent notifications.
 
 ### Network Configuration
 
@@ -176,6 +224,71 @@ export BATCH_SIZE=200
 export MAX_RETRIES=5
 export ERROR_RETRY_INTERVAL_MS=10000
 ```
+
+## Mock Notification System
+
+For testing voice agent integration without requiring real blockchain events, use the mock notification system:
+
+### Quick Demo
+
+```bash
+# Run a simple demo
+python test_mock_notifications.py
+```
+
+### Standalone Script Usage
+
+```bash
+# Single order simulation
+python handlers/mock_voice_notifications.py --scenario single --coffee Espresso --delay 2
+
+# Rush period simulation (5 orders)
+python handlers/mock_voice_notifications.py --scenario rush_period --orders 5 --delay 1
+
+# Test all coffee types
+python handlers/mock_voice_notifications.py --scenario mixed --delay 1.5
+
+# Test error handling
+python handlers/mock_voice_notifications.py --scenario errors
+
+# Use custom voice agent URL
+python handlers/mock_voice_notifications.py --scenario single --websocket-url ws://localhost:9000
+
+# Enable verbose logging
+python handlers/mock_voice_notifications.py --scenario rush_period --verbose
+```
+
+### Module Usage
+
+```python
+from handlers import MockNotificationGenerator
+
+# Initialize generator
+generator = MockNotificationGenerator()
+
+# Simulate single order
+await generator.simulate_single_order(
+    coffee_type="Americano",
+    delay_between_status=2.0
+)
+
+# Simulate rush period
+order_ids = await generator.simulate_rush_period(
+    num_orders=10,
+    delay_between_orders=0.5,
+    delay_between_status=1.0
+)
+
+# Test all coffee types
+await generator.simulate_mixed_coffee_types(delay=1.0)
+```
+
+### Available Scenarios
+
+- **`single`** - Complete lifecycle of one order (Created → Processing → Ready → Completed)
+- **`rush_period`** - Multiple concurrent orders with staggered timing
+- **`mixed`** - One order of each coffee type (Espresso, Americano, Doppio, Long, Coffee, HotWater)
+- **`errors`** - Test error handling with invalid URLs and disabled notifications
 
 ## Development
 
@@ -267,6 +380,23 @@ print(f"Mock coffee machine: Making {sys.argv[2]} coffee")
 print("Coffee ready!")
 ```
 
+### Testing Voice Agent Integration
+
+For development without a voice agent server:
+
+```bash
+# Disable voice agent notifications
+export VOICE_AGENT_ENABLED=false
+
+# Test with mock notifications (voice agent not required)
+python test_mock_notifications.py
+
+# Test specific scenarios
+python handlers/mock_voice_notifications.py --scenario errors
+```
+
+The mock notification system works independently and will show connection warnings when the voice agent server is not running, which is expected behavior for testing.
+
 ## Production Deployment
 
 ### PostgreSQL Setup
@@ -296,6 +426,8 @@ RUN python setup.py  # Pre-generate client
 ENV SUI_NETWORK=mainnet
 ENV PACKAGE_ID=0x...
 ENV COFFEE_MACHINE_ENABLED=true
+ENV VOICE_AGENT_ENABLED=true
+ENV VOICE_AGENT_WEBSOCKET_URL=ws://voice-agent:8080
 
 CMD ["python", "indexer.py"]
 ```
@@ -313,6 +445,7 @@ python indexer.py
 python indexer.py 2>&1 | grep "CAFE HANDLER"
 python indexer.py 2>&1 | grep "ORDER HANDLER"
 python indexer.py 2>&1 | grep "Coffee machine"
+python indexer.py 2>&1 | grep "Voice agent"
 ```
 
 ## Troubleshooting
@@ -337,6 +470,18 @@ python3.13 $CONTROLLER_PATH $MAC_ADDRESS espresso
 
 # Check Bluetooth connectivity
 hcitool scan
+```
+
+**Voice Agent Connection Issues:**
+```bash
+# Test WebSocket connectivity
+wscat -c $VOICE_AGENT_WEBSOCKET_URL
+
+# Test with mock notifications
+python handlers/mock_voice_notifications.py --scenario errors
+
+# Check voice agent server status
+curl -I http://localhost:8080/health  # If your voice agent has health endpoint
 ```
 
 **Network Connection Issues:**
