@@ -6,6 +6,18 @@ This script shows how to import and use the mock notification system
 for testing voice agent integration.
 """
 
+# Handle imports when running from within SDK source tree
+# This is needed because we're running an example script within the SuiPy SDK project itself
+# and need to ensure the SDK's sui_py module is available for import by the handlers
+import sys
+import os
+
+# Add the SDK root (sui-py directory) to Python path
+# Path calculation: coffee_club_indexer_v2/ -> examples/ -> sui-py/
+sdk_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if sdk_root not in sys.path:
+    sys.path.insert(0, sdk_root)
+
 import asyncio
 import logging
 from handlers import MockNotificationGenerator
