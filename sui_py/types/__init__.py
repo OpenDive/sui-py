@@ -43,6 +43,14 @@ from .write_api import (
     # Supporting types
     BalanceChange, ObjectChange, TransactionEffects, DevInspectArgs
 )
+from .read_api import (
+    # Options
+    ObjectDataOptions as ReadObjectDataOptions,
+    # Checkpoint types
+    Checkpoint, CheckpointPage,
+    # System types
+    ProtocolConfig
+)
 
 __all__ = [
     # Base types
@@ -127,4 +135,10 @@ __all__ = [
     "ObjectChange", 
     "TransactionEffects",
     "DevInspectArgs",
+    
+    # Read API types
+    "ReadObjectDataOptions",
+    "Checkpoint",
+    "CheckpointPage",
+    "ProtocolConfig",
 ] 
