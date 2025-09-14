@@ -51,6 +51,12 @@ from .read_api import (
     # System types
     ProtocolConfig
 )
+from .move_utils import (
+    SuiMoveFunctionArgType,
+    SuiMoveNormalizedFunction,
+    SuiMoveNormalizedModule,
+    SuiMoveNormalizedStruct
+)
 
 __all__ = [
     # Base types
@@ -141,4 +147,10 @@ __all__ = [
     "Checkpoint",
     "CheckpointPage",
     "ProtocolConfig",
+    
+    # Move Utils API types
+    "SuiMoveFunctionArgType",
+    "SuiMoveNormalizedFunction",
+    "SuiMoveNormalizedModule",
+    "SuiMoveNormalizedStruct",
 ] 

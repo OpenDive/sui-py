@@ -10,6 +10,7 @@ from .extended_api import ExtendedAPIClient
 from .governance_read import GovernanceReadClient
 from .write_api import WriteAPIClient
 from .read_api import ReadAPIClient
+from .move_utils_api import MoveUtilsAPIClient
 from ..constants import DEFAULT_TIMEOUT, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY
 
 
@@ -34,6 +35,10 @@ class SuiClient:
             # Extended queries
             objects = await client.extended_api.get_owned_objects(address)
             system_state = await client.governance_read.get_latest_sui_system_state()
+            
+            # Move introspection
+            func_types = await client.move_utils.get_move_function_arg_types("0x2", "coin", "transfer")
+            module_info = await client.move_utils.get_normalized_move_module("0x2", "coin")
             
             # Execute transactions
             response = await client.write_api.execute_transaction_block(
@@ -83,6 +88,7 @@ class SuiClient:
         self.governance_read = GovernanceReadClient(self._rest_client)
         self.write_api = WriteAPIClient(self._rest_client)
         self.read_api = ReadAPIClient(self._rest_client)
+        self.move_utils = MoveUtilsAPIClient(self._rest_client)
     
     async def __aenter__(self):
         """Async context manager entry."""
