@@ -426,24 +426,34 @@ async def demonstrate_execute_transaction(client: SuiClient, tx_bytes: str, sign
     print()
 
 
-def demonstrate_format_handling():
+def demonstrate_format_handling(tx_bytes: str):
     """
     Demonstrate handling different transaction byte formats.
+    
+    Args:
+        tx_bytes: User's actual transaction bytes in base64 format
     """
     print("=== Transaction Format Handling ===")
     print("🔄 Demonstrating format detection and conversion...")
     
-    # Example transaction data in different formats
-    base64_example = "AAAEAQBX81xJQM5DHo5/jceY0CRyy75ofrHiPR08Z87V+uJp0SUeUCIAAAAA"
-    hex_example = "0x000004010057f35c4940ce431e8e7f8dc798d02472cbee687eb1e23d1d3c67ced5fae269d1251e50220000000"
-    hex_raw_example = "000004010057f35c4940ce431e8e7f8dc798d02472cbee687eb1e23d1d3c67ced5fae269d1251e50220000000"
-    
-    test_cases = [
-        ("Base64 format", base64_example),
-        ("Hex with 0x prefix", hex_example),
-        ("Raw hex format", hex_raw_example),
-        ("Invalid format", "invalid!@#$%")
-    ]
+    # Generate test cases from user's actual transaction data
+    try:
+        # Convert user's base64 to hex for testing
+        decoded_bytes = base64.b64decode(tx_bytes)
+        user_hex = decoded_bytes.hex()
+        
+        test_cases = [
+            ("Base64 format", tx_bytes),
+            ("Hex with 0x prefix", f"0x{user_hex}"),
+            ("Raw hex format", user_hex),
+            ("Invalid format", "invalid!@#$%")
+        ]
+    except Exception:
+        # Fallback if conversion fails
+        test_cases = [
+            ("Base64 format", tx_bytes),
+            ("Invalid format", "invalid!@#$%")
+        ]
     
     for name, tx_input in test_cases:
         print(f"\n🧪 Testing: {name}")
@@ -585,7 +595,7 @@ async def main():
             await demonstrate_execute_transaction(client, tx_bytes, signature)
             
             # Educational demonstrations
-            demonstrate_format_handling()
+            demonstrate_format_handling(tx_bytes)
             await demonstrate_error_handling(client)
             
             print("🎉 All Write API demonstrations completed!")
