@@ -59,7 +59,10 @@ import base64
 import json
 from typing import Optional
 
-from sui_py import SuiClient, SuiError, TransactionBlockResponseOptions
+from sui_py import (
+    SuiClient, SuiError, TransactionBlockResponseOptions,
+    TransactionBuilder, Account, SignatureScheme, create_private_key
+)
 
 # Debug flag - set to False to disable debug output
 DEBUG_WRITE_API = True
@@ -731,218 +734,253 @@ async def demonstrate_advanced_response_options(client: SuiClient, tx_bytes: str
     print()
 
 
-async def demonstrate_write_api_specific_errors(client: SuiClient):
+async def demonstrate_basic_error_handling(client: SuiClient):
     """
-    Demonstrate Write API specific error conditions with crafted scenarios.
+    Demonstrate basic error handling for common scenarios.
     
     Args:
         client: Connected SuiClient instance
     """
-    print("=== Write API Specific Error Scenarios ===")
-    print("🚨 Testing targeted error conditions for Write API methods...")
+    print("=== Basic Error Handling ===")
+    print("🚨 Testing common error scenarios...")
     
-    # Comprehensive error test scenarios
-    error_scenarios = [
+    # Simple error test cases
+    error_tests = [
         {
-            "category": "Transaction Format Errors",
-            "tests": [
-                {
-                    "name": "Invalid Base64 Transaction",
-                    "method": "dry_run",
-                    "tx_bytes": "invalid_base64!@#$%^&*()",
-                    "signature": None,
-                    "expected_error": "Invalid base64 or BCS format"
-                },
-                {
-                    "name": "Empty Transaction Bytes",
-                    "method": "dry_run", 
-                    "tx_bytes": "",
-                    "signature": None,
-                    "expected_error": "Empty transaction data"
-                },
-                {
-                    "name": "Truncated Transaction Data",
-                    "method": "dry_run",
-                    "tx_bytes": "AAAEAQ==",  # Too short to be valid
-                    "signature": None,
-                    "expected_error": "Insufficient transaction data"
-                }
-            ]
+            "name": "Invalid transaction format",
+            "tx_bytes": "invalid_data",
+            "method": "dry_run"
         },
         {
-            "category": "Signature Format Errors",
-            "tests": [
-                {
-                    "name": "Invalid Signature Format",
-                    "method": "execute",
-                    "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
-                    "signature": "invalid_signature_format!@#$",
-                    "expected_error": "Invalid signature format"
-                },
-                {
-                    "name": "Empty Signature",
-                    "method": "execute",
-                    "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
-                    "signature": "",
-                    "expected_error": "Missing signature"
-                },
-                {
-                    "name": "Wrong Signature Length",
-                    "method": "execute",
-                    "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
-                    "signature": "dGVzdA==",  # "test" in base64, too short
-                    "expected_error": "Invalid signature length"
-                }
-            ]
-        },
-        {
-            "category": "Dev Inspect Specific Errors",
-            "tests": [
-                {
-                    "name": "Invalid Sender Address Format",
-                    "method": "dev_inspect",
-                    "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
-                    "sender": "invalid_address_format",
-                    "expected_error": "Invalid sender address"
-                },
-                {
-                    "name": "Malformed Transaction for Dev Inspect",
-                    "method": "dev_inspect",
-                    "tx_bytes": "dGVzdA==",  # Valid base64 but invalid transaction
-                    "sender": REAL_TRANSACTION_DATA["sender"],
-                    "expected_error": "Cannot parse transaction"
-                }
-            ]
-        },
-        {
-            "category": "Network and RPC Errors",
-            "tests": [
-                {
-                    "name": "Oversized Transaction Data",
-                    "method": "dry_run",
-                    "tx_bytes": base64.b64encode(b"x" * 1000000).decode('utf-8'),  # 1MB of data
-                    "signature": None,
-                    "expected_error": "Transaction too large"
-                }
-            ]
+            "name": "Invalid signature format", 
+            "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
+            "signature": "invalid_sig",
+            "method": "execute"
         }
     ]
     
-    total_tests = sum(len(category["tests"]) for category in error_scenarios)
-    test_count = 0
-    
-    for category in error_scenarios:
-        print(f"\n📂 {category['category']}")
+    for test in error_tests:
+        print(f"\n🧪 Testing: {test['name']}")
         
-        for test in category["tests"]:
-            test_count += 1
-            print(f"\n🧪 Test {test_count}/{total_tests}: {test['name']}")
-            print(f"   Expected: {test['expected_error']}")
+        try:
+            if test["method"] == "dry_run":
+                await client.write_api.dry_run_transaction_block(test["tx_bytes"])
+            elif test["method"] == "execute":
+                await client.write_api.execute_transaction_block(
+                    transaction_block=test["tx_bytes"],
+                    signature=test["signature"]
+                )
             
-            try:
-                start_time = time.time()
-                
-                if test["method"] == "dry_run":
-                    await client.write_api.dry_run_transaction_block(test["tx_bytes"])
-                elif test["method"] == "execute":
-                    await client.write_api.execute_transaction_block(
-                        transaction_block=test["tx_bytes"],
-                        signature=test["signature"]
-                    )
-                elif test["method"] == "dev_inspect":
-                    await client.write_api.dev_inspect_transaction_block(
-                        sender=test.get("sender", REAL_TRANSACTION_DATA["sender"]),
-                        transaction_block=test["tx_bytes"]
-                    )
-                
-                duration = time.time() - start_time
-                print(f"   ⚠️  Unexpectedly succeeded in {duration:.3f}s (should have failed)")
-                
-            except SuiError as e:
-                duration = time.time() - start_time
-                error_type = type(e).__name__
-                error_msg = str(e)
-                
-                print(f"   ✅ Expected error caught in {duration:.3f}s")
-                print(f"   📋 Error type: {error_type}")
-                print(f"   💬 Message: {error_msg[:100]}{'...' if len(error_msg) > 100 else ''}")
-                
-                # Analyze error details
-                if hasattr(e, 'code'):
-                    print(f"   🔢 RPC Code: {e.code}")
-                if hasattr(e, 'data'):
-                    print(f"   📊 Error Data: {str(e.data)[:50]}{'...' if len(str(e.data)) > 50 else ''}")
-                
-            except Exception as e:
-                duration = time.time() - start_time
-                print(f"   ✅ Error caught in {duration:.3f}s: {type(e).__name__}")
-                print(f"   💬 Message: {str(e)[:100]}{'...' if len(str(e)) > 100 else ''}")
+            print("   ⚠️  Unexpectedly succeeded")
+            
+        except SuiError as e:
+            print(f"   ✅ Expected error: {type(e).__name__}")
+        except Exception as e:
+            print(f"   ✅ Expected error: {type(e).__name__}")
     
-    print(f"\n📊 Error Testing Summary:")
-    print(f"   • Tested {total_tests} error scenarios across {len(error_scenarios)} categories")
-    print(f"   • All Write API methods validated for proper error handling")
-    print(f"   • Error messages provide clear diagnostic information")
-    
-    print("\n💡 Error Handling Best Practices:")
-    print("   • Always validate input formats before RPC calls")
-    print("   • Handle SuiError specifically for RPC-related issues")
-    print("   • Log error codes and messages for debugging")
-    print("   • Implement retry logic for transient network errors")
-    print("   • Provide user-friendly error messages in production")
+    print("\n💡 Error Handling Tips:")
+    print("   • Always wrap Write API calls in try/except blocks")
+    print("   • Handle SuiError for RPC-specific issues")
+    print("   • Validate inputs before making RPC calls")
     print()
 
 
-async def demonstrate_error_handling(client: SuiClient):
+
+
+async def demonstrate_transaction_building_integration(client: SuiClient):
     """
-    Demonstrate proper error handling for various failure scenarios.
+    Demonstrate TransactionBuilder integration with Write API signing protocol.
     
     Args:
         client: Connected SuiClient instance
     """
-    print("=== General Error Handling Demonstration ===")
-    print("🚨 Testing general error scenarios...")
+    print("=== Transaction Building Integration ===")
+    print("🏗️  Demonstrating TransactionBuilder + Write API integration...")
     
-    error_test_cases = [
-        {
-            "name": "Invalid transaction bytes",
-            "tx_bytes": "invalid_base64!@#$",
-            "signature": "valid_signature_format_but_fake",
-            "test_method": "dry_run"
-        },
-        {
-            "name": "Empty transaction bytes",
-            "tx_bytes": "",
-            "signature": "valid_signature_format_but_fake",
-            "test_method": "dry_run"
-        },
-        {
-            "name": "Invalid signature format",
-            "tx_bytes": REAL_TRANSACTION_DATA["tx_bytes"],
-            "signature": "invalid_signature!@#$",
-            "test_method": "execute"
-        }
-    ]
+    try:
+        # Create a test account
+        print("\n🔑 Creating test account...")
+        private_key = create_private_key(SignatureScheme.ED25519)
+        account = Account.from_private_key(private_key)
+        
+        print(f"   ✅ Generated Ed25519 account: {account.address}")
+        print(f"   🔐 Signature scheme: {account.scheme.value}")
+        
+        # Create a simple transaction
+        print("\n🏗️  Building transaction...")
+        tx = TransactionBuilder()
+        
+        # Add a simple transfer (using dummy objects for demonstration)
+        dummy_coin = tx.object("0x0000000000000000000000000000000000000000000000000000000000000001")
+        recipient = tx.pure("0x0000000000000000000000000000000000000000000000000000000000000002")
+        tx.transfer_objects([dummy_coin], recipient)
+        
+        # Set transaction metadata
+        tx.set_sender(account.address)
+        tx.set_gas_budget(1000000)
+        tx.set_gas_price(1000)
+        
+        print(f"   ✅ Created transaction with {len(tx)} commands")
+        print(f"   📋 Sender: {tx._sender}")
+        print(f"   ⛽ Gas budget: {tx._gas_budget:,} MIST")
+        
+        # Demonstrate the simplified workflow
+        print("\n🧪 Testing simplified workflow...")
+        try:
+            # This will fail due to dummy objects, but demonstrates the workflow
+            result = await client.write_api.execute_built_transaction(tx, account)
+            print(f"   ✅ Transaction executed: {result.digest}")
+            
+        except Exception as e:
+            print(f"   ⚠️  Execution failed (expected with dummy objects): {str(e)[:100]}...")
+            print("   💡 This demonstrates the workflow - real objects would work")
+        
+        # Demonstrate manual signing workflow
+        print("\n✍️  Testing manual signing workflow...")
+        try:
+            # Build transaction bytes manually (will fail, but shows the process)
+            tx_bytes = tx.to_bytes_sync()
+            
+            # Sign with simplified API
+            signature = account.sign_transaction(tx_bytes)
+            
+            print(f"   ✅ Transaction built: {len(tx_bytes)} bytes")
+            print(f"   ✅ Transaction signed: {len(signature)} chars")
+            print(f"   🔐 Signature preview: {signature[:30]}...")
+            
+        except Exception as e:
+            print(f"   ⚠️  Manual signing failed (expected): {str(e)[:100]}...")
+            print("   💡 Real objects with proper gas setup would work")
+        
+        print("\n💡 Simplified Workflow Summary:")
+        print("   1️⃣  Create TransactionBuilder and configure transaction")
+        print("   2️⃣  Create account with private key")
+        print("   3️⃣  Use execute_built_transaction(tx, account) for one-step execution")
+        print("   4️⃣  Or manually: tx_bytes = tx.build() → signature = account.sign_transaction(tx_bytes) → execute()")
+        
+    except Exception as e:
+        print(f"❌ Integration demo failed: {e}")
+        print("   This is expected without proper gas coins and object setup")
     
-    for test_case in error_test_cases:
-        print(f"\n🧪 Testing: {test_case['name']}")
+    print()
+
+
+async def demonstrate_sign_and_execute_transaction(client: SuiClient):
+    """
+    Demonstrate the complete sign-and-execute workflow using existing transaction data.
+    
+    Args:
+        client: Connected SuiClient instance
+    """
+    print("=== Sign and Execute Transaction Workflow ===")
+    print("🚀 Demonstrating complete signing and execution workflow...")
+    
+    try:
+        # Create test account
+        print("\n🔑 Creating test account...")
+        private_key = create_private_key(SignatureScheme.ED25519)
+        account = Account.from_private_key(private_key)
+        
+        print(f"   ✅ Generated account: {account.address}")
+        print(f"   🔐 Scheme: {account.scheme.value}")
+        
+        # Use existing transaction data for demonstration
+        tx_bytes_b64 = REAL_TRANSACTION_DATA["tx_bytes"]
+        
+        print(f"\n📋 Using example transaction data:")
+        print(f"   📏 Transaction size: {len(tx_bytes_b64)} chars (base64)")
+        print(f"   🎯 Original sender: {REAL_TRANSACTION_DATA['sender']}")
+        
+        # Demonstrate signing workflow
+        print("\n✍️  Signing transaction with Sui intent protocol...")
+        
+        # Sign transaction with simplified API
+        tx_bytes = base64.b64decode(tx_bytes_b64)
+        signature = account.sign_transaction(tx_bytes)
+        print(f"   ✅ Signed transaction: {len(signature)} chars")
+        
+        # Signature is now ready for use
+        
+        # Demonstrate execution (will fail due to different signer, but shows workflow)
+        print(f"\n🚀 Attempting transaction execution...")
+        print(f"   ⚠️  Note: This will fail because we're using a different account")
         
         try:
-            if test_case["test_method"] == "dry_run":
-                await client.write_api.dry_run_transaction_block(test_case["tx_bytes"])
-            elif test_case["test_method"] == "execute":
-                await client.write_api.execute_transaction_block(
-                    transaction_block=test_case["tx_bytes"],
-                    signature=test_case["signature"]
+            result = await client.write_api.execute_transaction_block(
+                transaction_block=tx_bytes_b64,
+                signature=signature,
+                options=TransactionBlockResponseOptions(
+                    show_effects=True,
+                    show_events=True
                 )
+            )
             
-            print("   ⚠️  Unexpectedly succeeded (should have failed)")
+            print(f"   ✅ Transaction executed: {result.digest}")
             
         except SuiError as e:
-            print(f"   ✅ Expected error caught: {type(e).__name__}")
-            print(f"      Message: {str(e)[:100]}{'...' if len(str(e)) > 100 else ''}")
-        except Exception as e:
-            print(f"   ✅ Expected error caught: {type(e).__name__}")
-            print(f"      Message: {str(e)[:100]}{'...' if len(str(e)) > 100 else ''}")
+            print(f"   ❌ Execution failed (expected): {str(e)[:100]}...")
+            print(f"   💡 Reason: Different signer account than original transaction")
+        
+        # Signature verification would require additional implementation
+        print(f"\n💡 Signature verification can be added if needed")
+        
+        print(f"\n💡 Sign and Execute Workflow:")
+        print(f"   1️⃣  Create or load account with private key")
+        print(f"   2️⃣  Build transaction or get transaction bytes")
+        print(f"   3️⃣  Sign with account.sign_transaction(tx_bytes)")
+        print(f"   4️⃣  Execute with execute_transaction_block(tx_bytes, signature)")
+        
+    except Exception as e:
+        print(f"❌ Sign and execute demo failed: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print()
+
+
+async def demonstrate_signing_features(client: SuiClient):
+    """
+    Demonstrate simplified signing features.
+    
+    Args:
+        client: Connected SuiClient instance
+    """
+    print("=== Signing Features ===")
+    print("🔐 Demonstrating simplified signing capabilities...")
+    
+    try:
+        # Test different signature schemes
+        schemes_to_test = [
+            (SignatureScheme.ED25519, "Ed25519"),
+            (SignatureScheme.SECP256K1, "Secp256k1"),
+        ]
+        
+        tx_bytes = base64.b64decode(REAL_TRANSACTION_DATA["tx_bytes"])
+        
+        for scheme, name in schemes_to_test:
+            print(f"\n🧪 Testing {name}:")
+            
+            try:
+                # Create account with specific scheme
+                private_key = create_private_key(scheme)
+                account = Account.from_private_key(private_key)
+                
+                print(f"   ✅ Created {name} account: {account.address}")
+                
+                # Test transaction signing
+                signature = account.sign_transaction(tx_bytes)
+                print(f"   ✅ Signed transaction: {len(signature)} chars")
+                
+            except Exception as e:
+                print(f"   ❌ {name} test failed: {e}")
+        
+        print(f"\n💡 Signing Features:")
+        print(f"   🔐 Multiple signature schemes supported")
+        print(f"   ✍️  Simple API: account.sign_transaction(tx_bytes)")
+        print(f"   🎯 Built-in Sui intent protocol support")
+        
+    except Exception as e:
+        print(f"❌ Signing demo failed: {e}")
     
     print()
 
@@ -1016,11 +1054,15 @@ async def main():
             # Demonstrate advanced Write API features
             await demonstrate_transaction_polling(client)
             await demonstrate_advanced_response_options(client, tx_bytes)
-            await demonstrate_write_api_specific_errors(client)
+            await demonstrate_basic_error_handling(client)
+            
+            # Demonstrate simplified signing features
+            await demonstrate_transaction_building_integration(client)
+            await demonstrate_sign_and_execute_transaction(client)
+            await demonstrate_signing_features(client)
             
             # Educational demonstrations
             demonstrate_format_handling(tx_bytes)
-            await demonstrate_error_handling(client)
             
             print("🎉 All Write API demonstrations completed!")
             print()
@@ -1029,6 +1071,10 @@ async def main():
             print("   • Use dev_inspect_transaction_block for detailed analysis")
             print("   • Use wait_for_transaction for polling transaction status")
             print("   • Configure response options based on your needs (performance vs. detail)")
+            print("   • Use TransactionBuilder for programmatic transaction creation")
+            print("   • Use account.sign_transaction() for Sui-compatible transaction signing")
+            print("   • Use execute_built_transaction(tx, account) for complete workflows")
+            print("   • Multiple signature schemes supported (Ed25519, Secp256k1)")
             print("   • Always handle errors gracefully in production code")
             print("   • Transaction bytes can be provided in hex or base64 format")
             print("   • Test error scenarios to ensure robust error handling")

@@ -68,6 +68,8 @@ from .transactions import (
     MergeCoins, Publish, Upgrade, MakeMoveVec, Command
 )
 
+# Transaction signing is now available via Account.sign_transaction()
+
 __all__ = [
     # Client
     "SuiClient",

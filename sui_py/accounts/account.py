@@ -377,4 +377,28 @@ class Account(AbstractAccount):
         Returns:
             The public key as base64 string
         """
-        return self.public_key.to_base64() 
+        return self.public_key.to_base64()
+    
+    def sign_transaction(self, transaction_bytes: bytes) -> str:
+        """
+        Sign a transaction using Sui's intent-based protocol.
+        
+        Args:
+            transaction_bytes: BCS-serialized transaction data
+            
+        Returns:
+            Base64-encoded Sui signature ready for RPC calls
+        """
+        import hashlib
+        import base64
+        
+        # Create Sui transaction intent hash (simple approach)
+        intent_prefix = bytes([0, 0, 0])  # TransactionData, V0, Sui
+        intent_message = intent_prefix + transaction_bytes
+        intent_hash = hashlib.blake2b(intent_message, digest_size=32).digest()
+        
+        # Sign the intent hash
+        signature = self.sign(intent_hash)
+        
+        # Return in Sui format
+        return signature.to_sui_base64(self.public_key) 

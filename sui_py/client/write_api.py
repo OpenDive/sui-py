@@ -312,7 +312,7 @@ class WriteAPIClient:
         
         Args:
             sender: The sender's Sui address
-            transaction_block: BCS encoded TransactionKind as base64 string or bytes
+            transaction_block: BCS encoded TransactionKind as base64 !string or bytes
             gas_price: Gas price for calculation (optional)
             epoch: The epoch to perform the call (optional)
             
@@ -405,4 +405,37 @@ class WriteAPIClient:
             signature=signature,
             options=options,
             request_type=request_type
+        )
+
+    async def execute_built_transaction(
+        self,
+        transaction_builder,
+        account,
+        *,
+        options: Optional[TransactionBlockResponseOptions] = None
+    ) -> SuiTransactionBlockResponse:
+        """
+        Build, sign and execute a transaction.
+        
+        Args:
+            transaction_builder: TransactionBuilder instance
+            account: Account to sign with
+            options: Response options
+            
+        Returns:
+            Transaction execution response
+        """
+        import base64
+        
+        # Build transaction
+        tx_bytes = await transaction_builder.to_bytes(self.rest_client._client)
+        
+        # Sign transaction
+        signature = account.sign_transaction(tx_bytes)
+        
+        # Execute transaction
+        return await self.execute_transaction_block(
+            transaction_block=base64.b64encode(tx_bytes).decode('utf-8'),
+            signature=signature,
+            options=options
         )

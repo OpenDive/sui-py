@@ -2,11 +2,16 @@
 Unified signature implementation for all cryptographic schemes.
 """
 
+import base64
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ..exceptions import SuiValidationError
 from .base import AbstractSignature
 from .schemes import SignatureScheme
+
+if TYPE_CHECKING:
+    from .base import AbstractPublicKey
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,21 @@ class Signature(AbstractSignature):
             The signature as hex string with 0x prefix
         """
         return "0x" + self._signature_bytes.hex()
+    
+    def to_sui_base64(self, public_key: "AbstractPublicKey") -> str:
+        """
+        Export signature in Sui format as base64 string.
+        
+        Args:
+            public_key: The public key corresponding to this signature
+            
+        Returns:
+            Base64-encoded Sui signature format
+        """
+        # Sui signature format: [scheme_flag][signature_bytes][pubkey_bytes]
+        scheme_flag = 0x00 if self._scheme == SignatureScheme.ED25519 else 0x01
+        sui_signature = bytes([scheme_flag]) + self._signature_bytes + public_key.to_bytes()
+        return base64.b64encode(sui_signature).decode('utf-8')
     
     @property
     def scheme(self) -> SignatureScheme:
