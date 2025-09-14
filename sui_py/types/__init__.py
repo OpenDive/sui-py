@@ -18,7 +18,7 @@ from .extended import (
     # Events
     SuiEvent,
     # Transactions
-    TransactionBlockResponseOptions, SuiTransactionBlock, SuiTransactionBlockResponse,
+    SuiTransactionBlock, SuiTransactionBlockResponse,
     # Query filters
     EventFilter, TransactionFilter
 )
@@ -32,6 +32,16 @@ from .type_tag import (
     TypeTag, BoolTypeTag, U8TypeTag, U16TypeTag, U32TypeTag, U64TypeTag, U128TypeTag, U256TypeTag,
     AddressTypeTag, SignerTypeTag, VectorTypeTag, StructTypeTag,
     parse_type_tag, deserialize_type_tag
+)
+from .write_api import (
+    # Enums
+    ExecuteTransactionRequestType,
+    # Response options
+    TransactionBlockResponseOptions,
+    # Response types
+    DryRunTransactionBlockResponse, DevInspectResults,
+    # Supporting types
+    BalanceChange, ObjectChange, TransactionEffects, DevInspectArgs
 )
 
 __all__ = [
@@ -107,4 +117,14 @@ __all__ = [
     "StructTypeTag",
     "parse_type_tag",
     "deserialize_type_tag",
+    
+    # Write API types
+    "ExecuteTransactionRequestType",
+    "TransactionBlockResponseOptions",
+    "DryRunTransactionBlockResponse",
+    "DevInspectResults",
+    "BalanceChange",
+    "ObjectChange", 
+    "TransactionEffects",
+    "DevInspectArgs",
 ] 

@@ -295,30 +295,6 @@ class SuiEvent:
 
 
 @dataclass
-class TransactionBlockResponseOptions:
-    """
-    Options for transaction block response data.
-    """
-    show_input: bool = False
-    show_raw_input: bool = False
-    show_effects: bool = False
-    show_events: bool = False
-    show_object_changes: bool = False
-    show_balance_changes: bool = False
-    
-    def to_dict(self) -> Dict[str, bool]:
-        """Convert to dictionary format for API calls."""
-        return {
-            "showInput": self.show_input,
-            "showRawInput": self.show_raw_input,
-            "showEffects": self.show_effects,
-            "showEvents": self.show_events,
-            "showObjectChanges": self.show_object_changes,
-            "showBalanceChanges": self.show_balance_changes
-        }
-
-
-@dataclass
 class SuiTransactionBlock:
     """
     Represents a Sui transaction block.
@@ -354,7 +330,7 @@ class SuiTransactionBlockResponse:
     digest: TransactionDigest
     transaction: Optional[SuiTransactionBlock] = None
     raw_transaction: Optional[Base64] = None
-    effects: Optional[Dict[str, Any]] = None
+    effects: Optional[Any] = None  # Can be Dict or TransactionEffects object
     events: Optional[List[SuiEvent]] = None
     object_changes: Optional[List[Dict[str, Any]]] = None
     balance_changes: Optional[List[Dict[str, Any]]] = None
@@ -370,7 +346,7 @@ class SuiTransactionBlockResponse:
             digest=TransactionDigest.from_str(data["digest"]),
             transaction=SuiTransactionBlock.from_dict(data["transaction"]) if data.get("transaction") else None,
             raw_transaction=Base64.from_str(data["rawTransaction"]) if data.get("rawTransaction") else None,
-            effects=data.get("effects"),
+            effects=cls._convert_effects(data.get("effects")),
             events=[SuiEvent.from_dict(event) for event in data["events"]] if data.get("events") else None,
             object_changes=data.get("objectChanges"),
             balance_changes=data.get("balanceChanges"),
@@ -379,6 +355,16 @@ class SuiTransactionBlockResponse:
             checkpoint=data.get("checkpoint"),
             errors=data.get("errors")
         )
+    
+    @classmethod
+    def _convert_effects(cls, effects_data: Optional[Dict[str, Any]]) -> Optional[Any]:
+        """Convert effects dictionary to TransactionEffects object if present."""
+        if not effects_data:
+            return None
+        
+        # Import here to avoid circular imports
+        from .write_api import TransactionEffects
+        return TransactionEffects.from_dict(effects_data)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert SuiTransactionBlockResponse to dictionary format."""

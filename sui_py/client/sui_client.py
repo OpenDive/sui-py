@@ -8,6 +8,7 @@ from .rest_client import RestClient
 from .coin_query import CoinQueryClient
 from .extended_api import ExtendedAPIClient
 from .governance_read import GovernanceReadClient
+from .write_api import WriteAPIClient
 from ..constants import DEFAULT_TIMEOUT, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY
 
 
@@ -24,6 +25,12 @@ class SuiClient:
             coins = await client.coin_query.get_all_coins(address)
             objects = await client.extended_api.get_owned_objects(address)
             system_state = await client.governance_read.get_latest_sui_system_state()
+            
+            # Execute transactions
+            response = await client.write_api.execute_transaction_block(
+                transaction_block=tx_bytes,
+                signature=signature
+            )
     """
     
     def __init__(
@@ -65,6 +72,7 @@ class SuiClient:
         self.coin_query = CoinQueryClient(self._rest_client)
         self.extended_api = ExtendedAPIClient(self._rest_client)
         self.governance_read = GovernanceReadClient(self._rest_client)
+        self.write_api = WriteAPIClient(self._rest_client)
     
     async def __aenter__(self):
         """Async context manager entry."""
