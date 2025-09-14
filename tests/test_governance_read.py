@@ -5,7 +5,7 @@ Tests for the Governance Read API client.
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from sui_py.client.governance_read import GovernanceReadClient
+from sui_py.client.governance_read_api import GovernanceReadClient
 from sui_py.client.rest_client import RestClient
 from sui_py.types import (
     CommitteeInfo, SuiSystemStateSummary, ValidatorApys, ValidatorApy, 

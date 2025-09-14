@@ -5,9 +5,9 @@ Main Sui client that provides access to all Sui blockchain APIs.
 from typing import Optional, Union
 
 from .rest_client import RestClient
-from .coin_query import CoinQueryClient
+from .coin_query_api import CoinQueryClient
 from .extended_api import ExtendedAPIClient
-from .governance_read import GovernanceReadClient
+from .governance_read_api import GovernanceReadClient
 from .write_api import WriteAPIClient
 from .read_api import ReadAPIClient
 from .move_utils_api import MoveUtilsAPIClient
