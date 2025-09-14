@@ -25,7 +25,8 @@ else:
         "httpx>=0.25.0",
         "typing-extensions>=4.0.0",
         "pynacl>=1.5.0",
-        "ecdsa>=0.18.0"
+        "ecdsa>=0.18.0",
+        "base58>=2.1.0"
     ]
 
 
@@ -114,6 +115,8 @@ setup(
             "isort>=5.12.0",
             "mypy>=1.0.0",
             "flake8>=6.0.0",
+            "pytest-cov>=4.0.0",
+            "pytest-mock>=3.10.0",
         ],
     },
     keywords="sui blockchain crypto web3 async sdk",
