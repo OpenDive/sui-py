@@ -12,9 +12,44 @@ This script demonstrates how to use the async Write API client to:
 The example includes real Sui transaction data for testing.
 
 Usage:
-    python write_api_example.py                                    # Use example data
-    python write_api_example.py <tx_bytes> <signature>             # Use custom data
-    python write_api_example.py <tx_bytes> <signature> <sender>    # Full custom data
+    # Use built-in example data
+    python3 examples/write_api_example.py
+    
+    # Use your own transaction bytes and signature
+    python3 examples/write_api_example.py <tx_bytes> <signature>
+    
+    # Specify sender address explicitly
+    python3 examples/write_api_example.py <tx_bytes> <signature> <sender>
+
+Example with real data:
+    python3 examples/write_api_example.py \
+      "AAAEAQBX81xJQM5DHo5/jceY0CRyy75ofrHiPR08Z87V+uJp0SUeUCIAAAAAIOG7Q2BqQ7ubDu+AMmcKnOMtQ9qlCPVyov5TAUwSBiU5AAgBAAAAAAAAAAEB+kXkr+JWG8JF5msZDy5DkcCptMOkz7UUC2RKVX4Q5Ox6LDkiAAAAAAEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAQAAAAAAAAAAAwIBAAABAQEAALkI7DF3LJccTHGo/QLJ4W/2TmTcck15IDO06bHDVJHrCXJvYm90X3BldAJoaQAAALkI7DF3LJccTHGo/QLJ4W/2TmTcck15IDO06bHDVJHrCXJvYm90X3BldApmZWVkX3RyZWF0AAQBAgADAAAAAAIBAAEDAM0yfOn6ogI/ApPwOB063148bFd7ZbYSZKWoCNyCeblkAU3b6gkObn2/Rr8HB9Vj68sMNC8xqn2QVUDx5HVQNrpUWWVQIgAAAAAg9Rr3yuGntheUmkysknxBWwks+6Wqbh41Z64mAPCD8c3NMnzp+qICPwKT8DgdOt9ePGxXe2W2EmSlqAjcgnm5ZOgDAAAAAAAAhNgxAAAAAAAA" \
+      "AAt4ih9jPcbdc3SkSiBI6gbL+3MRnnHs5V3hM1ptgHr/AEu/YjXx2QTh5/orJqYSji/qwvW/zWU0fZqJ8oSWywdunWqkb/0h4vSCCYj1w2OU84nFcZtk45+ZI+TTBcdtYg=="
+
+Parameters:
+    tx_bytes  : Transaction bytes in base64 format (typically 400-800+ characters)
+                Get from: sui client dry-run, TypeScript SDK, or transaction builders
+    signature : Transaction signature in base64 format (typically 132 characters)
+                Get from: sui client sign, wallet signing, or crypto libraries
+    sender    : Transaction sender address in hex format (optional)
+                Format: 0x followed by 64 hex characters
+
+How to get transaction data:
+    # Using Sui CLI
+    sui client transfer-sui --to 0x... --amount 1000000 --dry-run
+    sui client sign --data <transaction_bytes>
+    
+    # Using TypeScript SDK
+    const tx = new TransactionBlock();
+    tx.transferObjects([coin], recipient);
+    const bytes = await tx.build({ client });
+    const signature = await keypair.signTransactionBlock(bytes);
+
+Expected output:
+    ✅ Transaction executed successfully
+       Transaction digest: D661ZS4KiX4Zw4zpKcDtWXxmAw5JgsgpNabmMe3Bzmah
+       Status: {'status': 'success'}
+       Gas used: {'computationCost': '1000000', 'storageCost': '4028000', ...}
 """
 
 import asyncio
@@ -502,6 +537,12 @@ async def main():
         print(f"   Signature: {len(signature)} chars")
         print(f"   Sender: {sender}")
         
+        # Validate parameter formats
+        if len(tx_bytes_input) < 100:
+            print("⚠️  Warning: Transaction bytes seem too short (expected 400+ chars)")
+        if len(signature) != 132:
+            print(f"⚠️  Warning: Signature length is {len(signature)} chars (expected 132)")
+        
         # Normalize transaction bytes format
         try:
             tx_bytes = normalize_transaction_bytes(tx_bytes_input)
@@ -509,6 +550,7 @@ async def main():
             print(f"   Detected format: {detected_format}")
         except ValueError as e:
             print(f"❌ Invalid transaction bytes format: {e}")
+            print("💡 Tip: Transaction bytes should be in base64 or hex format")
             return
             
     else:
@@ -516,8 +558,14 @@ async def main():
         signature = REAL_TRANSACTION_DATA["signature"]
         sender = REAL_TRANSACTION_DATA["sender"]
         
-        print("📝 Using example transaction data")
-        print("   (Provide custom data as command line arguments)")
+        print("📝 Using built-in example data")
+        print("   💡 Tip: Pass your own transaction bytes and signature as arguments")
+        print("   Usage: python3 examples/write_api_example.py <tx_bytes> <signature> [sender]")
+        print()
+        print("   Example with real data:")
+        print("   python3 examples/write_api_example.py \\")
+        print('     "AAAEAQBX81xJQM5DHo5/jceY0CRyy75ofrHiPR08Z87V+uJp0S..." \\')
+        print('     "AAt4ih9jPcbdc3SkSiBI6gbL+3MRnnHs5V3hM1ptgHr/AEu/..."')
     
     print()
     
