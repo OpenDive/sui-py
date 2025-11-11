@@ -171,14 +171,14 @@ const signature = await keypair.signTransactionBlock(bytes);
 ## Additional Examples
 
 ### Coin Query API Example
-**File**: `coin_query_example.py` | `typed_coin_query_example.py`
+**File**: `coin_query_example.py`
 
-Query coin balances, metadata, and coin objects.
+Query coin balances, metadata, and coin objects with comprehensive type safety and advanced features.
 
 ### Extended API Example  
-**File**: `extended_api_example.py` | `typed_extended_api_example.py`
+**File**: `extended_api_example.py`
 
-Query owned objects, events, transactions, and dynamic fields.
+Query owned objects, events, transactions, and dynamic fields with advanced filtering and type safety.
 
 ### Governance Example
 **File**: `governance_example.py`
