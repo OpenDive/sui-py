@@ -93,12 +93,13 @@ class RestClient:
             "params": params
         }
     
-    def _handle_response(self, response_data: Dict[str, Any]) -> Any:
+    def _handle_response(self, response_data: Dict[str, Any], method: Optional[str] = None) -> Any:
         """
         Handle JSON-RPC response and extract result or raise error.
         
         Args:
             response_data: The JSON-RPC response
+            method: The RPC method name for better error context
             
         Returns:
             The result data
@@ -111,11 +112,12 @@ class RestClient:
             raise SuiRPCError(
                 message=error.get("message", "Unknown RPC error"),
                 code=error.get("code"),
-                data=error.get("data")
+                data=error.get("data"),
+                method=method
             )
         
         if "result" not in response_data:
-            raise SuiRPCError("Invalid response: missing result field")
+            raise SuiRPCError("Invalid response: missing result field", method=method)
         
         return response_data["result"]
     
@@ -187,7 +189,7 @@ class RestClient:
         
         request_data = self._build_request(method, params)
         response_data = await self._make_request_with_retry(request_data)
-        return self._handle_response(response_data)
+        return self._handle_response(response_data, method)
     
     @classmethod
     def from_network(

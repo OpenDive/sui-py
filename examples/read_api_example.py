@@ -35,7 +35,7 @@ import asyncio
 import sys
 from typing import Optional
 
-from sui_py import SuiClient
+from sui_py import SuiClient, SuiError, SuiRPCError
 from sui_py.types import ReadObjectDataOptions
 
 
@@ -54,14 +54,14 @@ async def demonstrate_system_info(client: SuiClient):
             print(f"Protocol Version: {protocol_config.version}")
             print(f"Max Transaction Size: {protocol_config.max_tx_size_bytes} bytes")
             print(f"Max Gas: {protocol_config.max_tx_gas}")
-        except Exception as protocol_error:
+        except SuiRPCError as protocol_error:
             print(f"Protocol config error: {protocol_error}")
         
         # Get total transaction count
         total_txs = await client.read_api.get_total_transaction_blocks()
         print(f"Total Transactions: {total_txs:,}")
         
-    except Exception as e:
+    except SuiError as e:
         print(f"Error getting system info: {e}")
     
     print()

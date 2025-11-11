@@ -8,7 +8,7 @@ __version__ = "0.1.0"
 __author__ = "SuiPy Team"
 
 from .client import SuiClient
-from .exceptions import SuiError, SuiRPCError, SuiValidationError
+from .exceptions import SuiError, SuiRPCError, SuiValidationError, SuiNetworkError, SuiTimeoutError
 from .types import (
     # Base types
     SuiAddress, ObjectID, ObjectRef, TransactionDigest, Base64, Hex,
@@ -78,6 +78,8 @@ __all__ = [
     "SuiError", 
     "SuiRPCError",
     "SuiValidationError",
+    "SuiNetworkError",
+    "SuiTimeoutError",
     
     # Base types
     "SuiAddress",

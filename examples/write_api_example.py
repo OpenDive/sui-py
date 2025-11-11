@@ -60,7 +60,7 @@ import json
 from typing import Optional
 
 from sui_py import (
-    SuiClient, SuiError, TransactionBlockResponseOptions,
+    SuiClient, SuiError, SuiRPCError, SuiValidationError, TransactionBlockResponseOptions,
     TransactionBuilder, Account, SignatureScheme, create_private_key
 )
 
@@ -540,6 +540,8 @@ async def demonstrate_transaction_polling(client: SuiClient):
             print(f"   ❌ RPC Error: {e}")
             print("   💡 This may indicate network issues or invalid digest format")
             
+        except SuiError as e:
+            print(f"   ❌ Sui error: {type(e).__name__}: {e}")
         except Exception as e:
             print(f"   ❌ Unexpected error: {type(e).__name__}: {e}")
     
@@ -773,9 +775,7 @@ async def demonstrate_basic_error_handling(client: SuiClient):
             
             print("   ⚠️  Unexpectedly succeeded")
             
-        except SuiError as e:
-            print(f"   ✅ Expected error: {type(e).__name__}")
-        except Exception as e:
+        except (SuiError, ValueError) as e:
             print(f"   ✅ Expected error: {type(e).__name__}")
     
     print("\n💡 Error Handling Tips:")

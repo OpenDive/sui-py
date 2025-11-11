@@ -12,7 +12,7 @@ This example demonstrates:
 
 from sui_py import (
     Account, AbstractAccount, SignatureScheme,
-    Ed25519PrivateKey, Secp256k1PrivateKey
+    Ed25519PrivateKey, Secp256k1PrivateKey, SuiValidationError
 )
 
 
@@ -71,7 +71,7 @@ def main():
     try:
         cross_valid = ed25519_account.verify(message, secp256k1_signature)
         print(f"Cross-verification fails:  ❌ False (unexpected)")
-    except Exception:
+    except SuiValidationError:
         print(f"Cross-verification fails:  ✅ True (expected exception)")
     
     # 5. Account serialization for storage
