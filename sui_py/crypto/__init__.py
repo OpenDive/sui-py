@@ -21,6 +21,18 @@ from .secp256k1 import (
     PublicKey as Secp256k1PublicKey
 )
 
+# Intent system
+from .intent import (
+    IntentScope,
+    IntentVersion,
+    AppId,
+    Intent,
+    IntentMessage,
+    message_with_intent,
+    message_with_intent_for_personal_message,
+    hash_intent_message,
+)
+
 __all__ = [
     # Core abstractions
     "SignatureScheme",
@@ -38,6 +50,16 @@ __all__ = [
     # Secp256k1 implementations
     "Secp256k1PrivateKey",
     "Secp256k1PublicKey",
+    
+    # Intent system
+    "IntentScope",
+    "IntentVersion",
+    "AppId",
+    "Intent",
+    "IntentMessage",
+    "message_with_intent",
+    "message_with_intent_for_personal_message",
+    "hash_intent_message",
     
     # Factory functions
     "create_private_key",

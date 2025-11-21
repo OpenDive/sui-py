@@ -389,13 +389,56 @@ class Account(AbstractAccount):
         Returns:
             Base64-encoded Sui signature ready for RPC calls
         """
-        import hashlib
-        import base64
+        from ..crypto.intent import IntentScope, message_with_intent, hash_intent_message
         
-        # Create Sui transaction intent hash (simple approach)
-        intent_prefix = bytes([0, 0, 0])  # TransactionData, V0, Sui
-        intent_message = intent_prefix + transaction_bytes
-        intent_hash = hashlib.blake2b(intent_message, digest_size=32).digest()
+        # Wrap transaction with intent
+        intent_message = message_with_intent(IntentScope.TransactionData, transaction_bytes)
+        intent_hash = hash_intent_message(intent_message)
+        
+        # Sign the intent hash
+        signature = self.sign(intent_hash)
+        
+        # Return in Sui format
+        return signature.to_sui_base64(self.public_key)
+    
+    def sign_personal_message(self, message: bytes) -> str:
+        """
+        Sign a personal message using Sui's intent-based protocol.
+        
+        This method handles the complete personal message signing process:
+        1. Serializes the message as BCS vector<u8>
+        2. Wraps with PersonalMessage intent
+        3. Hashes with BLAKE2b-256
+        4. Signs the hash
+        5. Returns Sui-formatted base64 signature
+        
+        This matches the TypeScript SDK's signPersonalMessage() method.
+        
+        Args:
+            message: The raw message bytes to sign
+            
+        Returns:
+            Base64-encoded Sui signature ready for verification
+            
+        Raises:
+            SuiValidationError: If the message is invalid
+            
+        Examples:
+            message = b"Hello, Sui blockchain!"
+            signature_b64 = account.sign_personal_message(message)
+            
+            # Verify with public key
+            if account.public_key.verify_personal_message(message, signature):
+                print("Signature is valid!")
+        """
+        from ..crypto.intent import message_with_intent_for_personal_message, hash_intent_message
+        
+        if not isinstance(message, bytes):
+            raise SuiValidationError("Message must be bytes")
+        
+        # Wrap personal message with intent (includes vector<u8> serialization)
+        intent_message = message_with_intent_for_personal_message(message)
+        intent_hash = hash_intent_message(intent_message)
         
         # Sign the intent hash
         signature = self.sign(intent_hash)

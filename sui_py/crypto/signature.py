@@ -140,6 +140,66 @@ class Signature(AbstractSignature):
         sui_signature = bytes([scheme_flag]) + self._signature_bytes + public_key.to_bytes()
         return base64.b64encode(sui_signature).decode('utf-8')
     
+    @classmethod
+    def from_sui_base64(cls, sui_signature_b64: str) -> "Signature":
+        """
+        Parse a Sui-formatted base64 signature.
+        
+        Sui signature format: [scheme_flag][signature_bytes][pubkey_bytes]
+        - scheme_flag: 1 byte (0x00 = ED25519, 0x01 = Secp256k1, 0x02 = Secp256r1)
+        - signature_bytes: 64 bytes (signature)
+        - pubkey_bytes: variable length depending on scheme
+        
+        Note: This method extracts only the signature bytes and scheme,
+        not the public key (which should be known from context).
+        
+        Args:
+            sui_signature_b64: Base64-encoded Sui signature
+            
+        Returns:
+            A Signature instance (without the embedded public key)
+            
+        Raises:
+            SuiValidationError: If the signature format is invalid
+        """
+        if not isinstance(sui_signature_b64, str):
+            raise SuiValidationError("Sui signature must be a string")
+        
+        try:
+            # Decode from base64
+            sui_signature_bytes = base64.b64decode(sui_signature_b64)
+        except Exception as e:
+            raise SuiValidationError(f"Invalid base64 string: {e}")
+        
+        if len(sui_signature_bytes) < 65:  # At least flag + 64 bytes signature
+            raise SuiValidationError(
+                f"Sui signature too short: {len(sui_signature_bytes)} bytes "
+                f"(minimum 65: 1 flag + 64 signature)"
+            )
+        
+        # Extract scheme flag
+        scheme_flag = sui_signature_bytes[0]
+        
+        # Map flag to scheme
+        flag_to_scheme = {
+            0x00: SignatureScheme.ED25519,
+            0x01: SignatureScheme.SECP256K1,
+            0x02: SignatureScheme.SECP256R1,
+        }
+        
+        if scheme_flag not in flag_to_scheme:
+            raise SuiValidationError(f"Unknown signature scheme flag: 0x{scheme_flag:02x}")
+        
+        scheme = flag_to_scheme[scheme_flag]
+        
+        # Extract signature bytes (always 64 bytes after the flag)
+        signature_bytes = sui_signature_bytes[1:65]
+        
+        # The remaining bytes are the public key (not extracted here)
+        # pubkey_bytes = sui_signature_bytes[65:]
+        
+        return cls(signature_bytes, scheme)
+    
     @property
     def scheme(self) -> SignatureScheme:
         """

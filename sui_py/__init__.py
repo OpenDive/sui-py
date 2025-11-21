@@ -40,6 +40,9 @@ from .crypto import (
     Ed25519PrivateKey, Ed25519PublicKey,
     # Secp256k1 implementations
     Secp256k1PrivateKey, Secp256k1PublicKey,
+    # Intent system
+    IntentScope, IntentVersion, AppId, Intent, IntentMessage,
+    message_with_intent, message_with_intent_for_personal_message, hash_intent_message,
     # Factory functions
     create_private_key, import_private_key
 )
@@ -133,6 +136,14 @@ __all__ = [
     "Ed25519PublicKey",
     "Secp256k1PrivateKey",
     "Secp256k1PublicKey",
+    "IntentScope",
+    "IntentVersion",
+    "AppId",
+    "Intent",
+    "IntentMessage",
+    "message_with_intent",
+    "message_with_intent_for_personal_message",
+    "hash_intent_message",
     "create_private_key",
     "import_private_key",
     
